@@ -1,4 +1,4 @@
-#Simple Password Keeper
+# Simple Password Keeper
 ---
 This is a project for storing password on PCs. It was orginaly created by me for me but I thought it was a a good idea to make it public.
 
