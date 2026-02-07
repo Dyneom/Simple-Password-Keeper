@@ -1,0 +1,10 @@
+# using python 3.14.2
+argon2-cffi==25.1.0
+argon2-cffi-bindings==25.1.0
+cffi==2.0.0
+cryptography==46.0.4
+pycparser==3.0
+PySide6==6.10.2
+PySide6_Addons==6.10.2
+PySide6_Essentials==6.10.2
+shiboken6==6.10.2

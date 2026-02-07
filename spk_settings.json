@@ -1,0 +1,11 @@
+{
+    "backup_directory" : ".spkbackups",
+    "backup_file" : "spk_backup_file.backup",
+    "dump_directory"   : ".spkdumps",
+    "file_directory"   : "",
+    "file_name"        : "spk_test_file",
+    "config_file"    : "spk.conf",
+    "backups_silent" : false,
+    "logs" : true,
+    "timeout_delay" : 60
+}
