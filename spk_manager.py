@@ -92,7 +92,7 @@ class SimplePasswordKeeper(QMainWindow):
             pw_list = []
             content = self.file_manager.get_content()
             if content != "":
-                content_list = content.split("\n")
+                content_list = content.split("ᓡ")
                 pw_list = [ tuple(i.split("◃")) for i in content_list]
               
             self.create_scroll_area(pw_list)
@@ -113,10 +113,10 @@ class SimplePasswordKeeper(QMainWindow):
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Question)        
         msg.setWindowTitle("U r dumb")
-        msg.setText("You are using non-standard characters in your password (U+9667). Please delete those")
+        msg.setText("You are using non-standard characters in your password (U+9667) or (U+5345). Please delete those")
         msg.setStyleSheet(self.theme.get("dialog_wrong_character").to_config())
         msg.setStandardButtons(QMessageBox.Ok)
-        self.logger.add("Non standard characters (U+9667). Couldn't save",self.logger.error)
+        self.logger.add("Non standard characters (U+9667) or (U+5345). Couldn't save",self.logger.error)
         msg.exec()
         
     def ask_password(self,message :str,hide = True):
@@ -214,24 +214,18 @@ class SimplePasswordKeeper(QMainWindow):
                     self.logger.add("Two or more passwords have the same name", self.logger.warning)
 
                 name : str = w.password_name.text()
-                passwords_names.append(name)                            # for keeping track of double names
-                passwords.append(( name, w.password.text(),w.uuid )) # for saving  
+                pw=w.password.text()
+                passwords_names.append(name)       # for keeping track of double names
+                passwords.append(( name, pw,w.uuid )) # for saving  
                 
-                if name.find("◃") != -1: 
-                    msg = QMessageBox()
-                    msg.setIcon(QMessageBox.Question)
-                    msg.setWindowTitle("U r dumb")
-                    msg.setText("You are using non-standard characters in your password (U+9667). Please delete those")
-                    msg.setStyleSheet(self.theme.get("dialog_wrong_character").to_config())
-                    msg.setStandardButtons(QMessageBox.Ok)
-                    self.logger.add("Non standard characters (U+9667). Couldn't save",self.logger.error)
-                    msg.exec()
+                if name.find("◃") != -1 or name.find("ᓡ") != -1 or pw.find("◃") != -1 or pw.find("ᓡ") != -1: # to keep the save for being unreadable
+                    self.wrong_character_popup()
                     return   
                 
         csv_to_encrypt = ""            
         for name, password, uuid in passwords : #not optimized
-            csv_to_encrypt+=name+"◃"+password+"◃"+str(uuid)+"\n"
-        self.file_manager.set_content(csv_to_encrypt[:-1]) # remove "\n" at the end
+            csv_to_encrypt+=name+"◃"+password+"◃"+str(uuid)+"ᓡ"
+        self.file_manager.set_content(csv_to_encrypt[:-1]) # remove "ᓡ" at the end
         self.file_manager.encrypt_content(is_backup= isbackup)
         self.file_manager.save(is_backup= isbackup)
         del passwords_names  
@@ -239,6 +233,7 @@ class SimplePasswordKeeper(QMainWindow):
                         
         
            #◃ 
+           #ᓡ
                  
     def create_new_password(self):
         
@@ -418,7 +413,7 @@ class SimplePasswordKeeper(QMainWindow):
             self.logger.add("There's something else ?",self.logger.warning)            
 
     def password_verifier(self, password_field  : QHBoxLayout):  
-        self.file_manager.make_backup()   
+        #self.file_manager.make_backup()  # to much backups !!!
         if password_field.text()=="":
             password_field.setStyleSheet(self.theme.get("password_warning").to_config())
         else:
@@ -427,11 +422,14 @@ class SimplePasswordKeeper(QMainWindow):
     def create_scroll_area(self,content):
        
         w=QWidget()
-        l=QVBoxLayout(w)
-       
-        for name, password, uuid in content:  
-            p_l=self.create_password_layout(name=name,password=password,uuid=uuid)             
-            l.addWidget(p_l)
+        l=QVBoxLayout(w)        
+        for el in content: 
+            try:
+                name, password, uuid = el  
+                p_l=self.create_password_layout(name=name,password=password,uuid=uuid)             
+                l.addWidget(p_l)
+            except Exception as e:
+                self.logger.add(f"THIS IS A BUG : Problem occured when trying to recreate the password layout, a password could be missing (Exception : {e})",self.logger.critical_error)
              
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)

@@ -7,5 +7,5 @@
     "config_file"    : "spk.conf",
     "backups_silent" : false,
     "logs" : true,
-    "timeout_delay" : 60
+    "timeout_delay" : 500
 }
