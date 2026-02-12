@@ -1,6 +1,7 @@
 from __future__ import annotations 
 from hashlib import pbkdf2_hmac # sha256
 import sys
+import os
 
 
 from PySide6.QtGui import QAction, QFont, QIcon, QShortcut, QKeySequence, QCursor
@@ -10,7 +11,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox,
                             QStyleFactory, QVBoxLayout, 
                             QWidget, QScrollArea, QToolBar,
                             QMainWindow, QLineEdit, QSpacerItem,
-                            QPushButton, QMessageBox, QWidgetItem, QInputDialog                        
+                            QPushButton, QMessageBox, QWidgetItem, QInputDialog, QLabel, QSizePolicy                  
                             )
 
 from PySide6.QtCore import QTimer, QTime
@@ -25,16 +26,11 @@ from cryptography.fernet import Fernet
 import logs
 import spk_file_manager
 import spk_theme
+import spk_indicator
 
 
 class SimplePasswordKeeper(QMainWindow):
 
-    def normalize_parse(self,string):
-        return string.strip()
-
-    def set_theme(self,default,custom):
-        if custom != "": return custom
-        else : return default
 
     def __init__(self,dir,theme,settings: spk_theme.ConfigDicts):
         super().__init__()
@@ -84,6 +80,13 @@ class SimplePasswordKeeper(QMainWindow):
             self.init_passwords()
 
         self.logger.add(f"Init finished | Launching app (result : {result})",self.logger.success)
+
+    def normalize_parse(self,string):
+        return string.strip()
+
+    def set_theme(self,default,custom):
+        if custom != "": return custom
+        else : return default
 
     def load_passwords(self):
         self.file_manager.load_encrypted_content()
@@ -162,7 +165,7 @@ class SimplePasswordKeeper(QMainWindow):
 
         #TODO : make the theming system nicer and safer
 
-        n=4
+        
 
         toolbar = QToolBar("toolbar")
         toolbar.setMovable(False)
@@ -183,6 +186,13 @@ class SimplePasswordKeeper(QMainWindow):
         toolbar.addAction(button_new_p) 
         self.main_layout = main_layout  
 
+        spacer =  QWidget()       
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        toolbar.addWidget(spacer)
+
+        self.indicator =  spk_indicator.Spk_Indicator("Saved",color = "green")
+        toolbar.addWidget(self.indicator)
+
 
         save_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
         save_shortcut.activated.connect(self.save)
@@ -192,7 +202,7 @@ class SimplePasswordKeeper(QMainWindow):
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(lambda : self.save(isbackup=True))
-        self.timer.start(6000)
+        self.timer.start(60000) # every minute 
 
         self.last_mouse_pos = ()
         self.timer2 = QTimer(self)
@@ -201,7 +211,7 @@ class SimplePasswordKeeper(QMainWindow):
 
         self.load_passwords()         
        
-    def save(self,isbackup = False): # TODO : a popup when saving password : keep the same or change
+    def save(self,isbackup : bool = False): # TODO : a popup when saving password : keep the same or change
         c=self.scroll_layout.count()
         passwords= []
         passwords_names= []
@@ -228,7 +238,9 @@ class SimplePasswordKeeper(QMainWindow):
         self.file_manager.set_content(csv_to_encrypt[:-1]) # remove "ᓡ" at the end
         self.file_manager.encrypt_content(is_backup= isbackup)
         self.file_manager.save(is_backup= isbackup)
-        del passwords_names  
+        del passwords_names 
+        if not isbackup : self.indicator.set("Saved","green") 
+        else : self.indicator.temp_message("Backed up","green",1)
         
                         
         
@@ -251,7 +263,7 @@ class SimplePasswordKeeper(QMainWindow):
         self.scroll_layout.addStretch()
         self.logger.add("Created new password",self.logger.success)
             
-    def delete_password(self,l,passw_uuid):
+    def delete_password(self,l,passw_uuid : uuid_manager.UUID):
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Question)
         msg.setWindowTitle("Confirmation")
@@ -300,6 +312,7 @@ class SimplePasswordKeeper(QMainWindow):
         supr_button = QPushButton("Del")
         
         password_name.setStyleSheet(self.theme.get("password_name").to_config())
+        password_name.textChanged.connect(self.name_changed)
 
         show_button.setTristate(False)
         show_button.setCheckable(True)
@@ -370,7 +383,7 @@ class SimplePasswordKeeper(QMainWindow):
             
         elif not butt.toggled_ and self.current_field_edited!=password_field:
             if self.current_field_edited == None:
-                self.logger.add("Ce n'est pas normal",self.logger.warning)
+                self.logger.add("This isn't normal",self.logger.warning)
             elif self.current_field_edited.text()!="":
                 password_field.setEnabled(True) 
                 butt.setChecked(True)                        
@@ -383,6 +396,7 @@ class SimplePasswordKeeper(QMainWindow):
             else:                
                 butt.setChecked(False)
                 self.current_field_button.setChecked(True)
+                self.indicator.temp_message("Empty field","red",1) 
                 
         
         elif butt.toggled_ and self.current_field_edited.text()=="":
@@ -390,10 +404,12 @@ class SimplePasswordKeeper(QMainWindow):
             butt.setChecked(True)                         
             self.current_field_edited.setEnabled(True)
             
-            self.current_field_edited = self.current_field_edited # pas de changement
+            self.current_field_edited = self.current_field_edited # no change
             self.current_field_button = self.current_field_button # idem
             butt.toggled_ = False 
-            self.editing = True              
+            self.editing = True
+
+            self.indicator.temp_message("Empty field","red",1)            
             self.logger.add("The field is empty, the field will stay focused",self.logger.information)     
 
 
@@ -412,10 +428,16 @@ class SimplePasswordKeeper(QMainWindow):
         else:
             self.logger.add("There's something else ?",self.logger.warning)            
 
+    def name_changed(self):
+        self.last_mouse_pos = (QCursor.pos() ,1)
+        self.indicator.set("Not saved","light_blue")
+
     def password_verifier(self, password_field  : QHBoxLayout):  
         #self.file_manager.make_backup()  # to much backups !!!
+        self.indicator.set("Not saved","blue")
+        self.last_mouse_pos = (QCursor.pos() ,1)
         if password_field.text()=="":
-            password_field.setStyleSheet(self.theme.get("password_warning").to_config())
+            password_field.setStyleSheet(self.theme.get("password_warning").to_config())        
         else:
             password_field.setStyleSheet(self.theme.get("password").to_config())
 
@@ -450,7 +472,7 @@ class SimplePasswordKeeper(QMainWindow):
         event.accept()
 
     def getMousePos(self):
-        global_pos = QCursor.pos()  
+        global_pos =  QCursor.pos()  
         if self.last_mouse_pos != ():
             if global_pos == self.last_mouse_pos[0]:
                 self.last_mouse_pos = (global_pos,self.last_mouse_pos[1] + 1)
@@ -462,12 +484,11 @@ class SimplePasswordKeeper(QMainWindow):
         else : 
             self.last_mouse_pos = (global_pos,1)
 
-       
-
-    
+      
 
 if __name__ == "__main__":
     global_logs = logs.Logger(display=True,write_in_file=False,name = "global")
+    print(os.listdir())
     with open("spk_settings.json") as json_settings_file:        
         settings_c=json.load(json_settings_file)
         
@@ -508,12 +529,13 @@ if __name__ == "__main__":
 
 
 #BUG: deleting a password while modifing it!!!
-#BUG: empty setting file makes an error
+#BUG: empty settings file makes an error
+#BUG : the logic when untoggling is weird
 
 
 # TODO LIST:
 # - ~~change the theming system~~    
-# - ~~make the user able to save with another password~~
+# - be able to change the master password
 # - import passwords
 # - export passwords (copy the file :) ) 
 # - ~~change the salts -> write in file~~

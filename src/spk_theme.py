@@ -5,7 +5,7 @@ import random
 import spk_theme
 
 class SpkTheme():
-
+    #TODO : change the default config to be in a file
     _default_config = """background {
     background-color: #202020;
     color : #c0c0c0;

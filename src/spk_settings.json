@@ -5,7 +5,7 @@
     "file_directory"   : "",
     "file_name"        : "spk_test_file",
     "config_file"    : "spk.conf",
-    "backups_silent" : false,
+    "backups_silent" : true,
     "logs" : true,
     "timeout_delay" : 500
 }
