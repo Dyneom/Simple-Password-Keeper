@@ -1,7 +1,6 @@
 from __future__ import annotations 
 from hashlib import pbkdf2_hmac # sha256
-import sys
-import os
+
 
 
 from PySide6.QtGui import QAction, QFont, QIcon, QShortcut, QKeySequence, QCursor, QColor
@@ -15,7 +14,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox,
                             QTextEdit         
                             )
 
-from PySide6.QtCore import QTimer, QTime
+from PySide6.QtCore import QTimer
 
 import uuid as uuid_manager
 import argon2
@@ -28,24 +27,26 @@ import logs
 import spk_file_manager
 import spk_theme
 import spk_indicator
+import spk_password
+import spk_variables
 
 
 class SimplePasswordKeeper(QMainWindow):
 
 
-    def __init__(self,dir,theme,settings: spk_theme.ConfigDicts):
+    def __init__(self,dir,var : spk_variables.SpkVariables):
         super().__init__()
 
-        self.logger=logs.Logger(display=settings.to_settings("logs"),name="manager_log")
-        self.theme = theme        
-        self.settings = settings      
+        self.logger=logs.Logger(display=var.settings.to_settings("logs"),name="manager_log")
+        self.theme = var.theme        
+        self.settings = var.settings      
 
         
         self.file_manager = spk_file_manager.FileManager(key = "",file_dir="test_file.spk",settings=self.settings) # No key at this point of the file, the key is set after in self.verify_password
         salt = self.file_manager.get_salt()
         hash = self.file_manager.get_hash()
         
-
+        self.var = var
         
             
         iter = 5_000_000
@@ -82,12 +83,9 @@ class SimplePasswordKeeper(QMainWindow):
 
         self.logger.add(f"Init finished | Launching app (result : {result})",self.logger.success)
 
-    def normalize_parse(self,string):
-        return string.strip()
+ 
 
-    def set_theme(self,default,custom):
-        if custom != "": return custom
-        else : return default
+    
 
     def loadPasswords(self):
         self.file_manager.load_encrypted_content()
@@ -118,7 +116,7 @@ class SimplePasswordKeeper(QMainWindow):
         msg.setIcon(QMessageBox.Question)        
         msg.setWindowTitle("U r dumb")
         msg.setText("You are using non-standard characters in your password (U+9667) or (U+5345). Please delete those")
-        msg.setStyleSheet(self.theme.get("dialog_wrong_character").to_config())
+        msg.setStyleSheet(self.var.theme.get("dialog_wrong_character").to_config())
         msg.setStandardButtons(QMessageBox.Ok)
         self.logger.add("Non standard characters (U+9667) or (U+5345). Couldn't save",self.logger.error)
         msg.exec()
@@ -130,11 +128,11 @@ class SimplePasswordKeeper(QMainWindow):
         dialog.setLabelText(message)
         dialog.setInputMode(QInputDialog.InputMode.TextInput)
         dialog.setCancelButtonText("Exit")
-        dialog.setStyleSheet(theme.get("dialog_password_main").to_config())
+        dialog.setStyleSheet(self.theme.get("dialog_password_main").to_config())
         
-        dialog.children()[0].setStyleSheet(theme.get("dialog_password_message").to_config())
-        dialog.children()[1].setStyleSheet(theme.get("dialog_password_password").to_config())
-        dialog.children()[2].setStyleSheet(theme.get("dialog_password_buttons").to_config())
+        dialog.children()[0].setStyleSheet(self.theme.get("dialog_password_message").to_config())
+        dialog.children()[1].setStyleSheet(self.theme.get("dialog_password_password").to_config())
+        dialog.children()[2].setStyleSheet(self.theme.get("dialog_password_buttons").to_config())
         dialog.children()[2].children()[1].setIcon(QIcon()) # YES
         dialog.children()[2].children()[2].setIcon(QIcon()) # NO
       
@@ -193,6 +191,7 @@ class SimplePasswordKeeper(QMainWindow):
         toolbar.addWidget(spacer)
 
         self.indicator =  spk_indicator.Spk_Indicator("Saved",color = "green")
+        self.var.indicator = self.indicator
         toolbar.addWidget(self.indicator)
 
 
@@ -211,7 +210,8 @@ class SimplePasswordKeeper(QMainWindow):
 
         self.last_mouse_pos = ()
         self.timer2 = QTimer(self)
-        self.timer2.timeout.connect(lambda : self.getMousePos())
+        self.var.resetMousePos()
+        self.timer2.timeout.connect(self.getMousePos)
         self.timer2.start(1000)
 
         #END -> loadPassword
@@ -230,7 +230,7 @@ class SimplePasswordKeeper(QMainWindow):
                     self.logger.add("Two or more passwords have the same name", self.logger.warning)
 
                 name : str = w.password_name.text()
-                pw=w.password.toPlainText()
+                pw=w.getText()
                 passwords_names.append(name)       # for keeping track of double names
                 passwords.append(( name, pw,w.uuid )) # for saving  
                 
@@ -255,9 +255,8 @@ class SimplePasswordKeeper(QMainWindow):
                  
     def newPassword(self):
         
-        new_pass_lay=self.createPasswordLayout(name="New password field",password_text="")
-        #self.scroll_layout.passwords.append((self.scroll_layout.passwords_order,new_pass_lay.password_name,new_pass_lay.password))
-        #self.scroll_layout.passwords_order+=1
+        new_pass_lay=spk_password.Password(self.var,name = "New Password",password_text = "")
+        
         try:
             stretch = self.scroll_layout.takeAt(self.scroll_layout.count() -1 )                   
             if isinstance(stretch,QSpacerItem) :             
@@ -269,7 +268,7 @@ class SimplePasswordKeeper(QMainWindow):
         self.scroll_layout.addStretch()
         self.logger.add("Created new password",self.logger.success)
             
-    def deletePassword(self,l,passw_uuid : uuid_manager.UUID):
+    def deletePassword(self,passw_uuid : uuid_manager.UUID):
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Question)
         msg.setWindowTitle("Confirmation")
@@ -292,6 +291,11 @@ class SimplePasswordKeeper(QMainWindow):
                 if tmp_uuid==passw_uuid :
                     self.logger.add(f"Deleting password in position {i} (uuid: {tmp_uuid})") 
                     a=self.scroll_layout.itemAt(i)
+                    if isinstance(a.widget(),spk_password.Password) : 
+                        bl = a.widget().untoggleEditing()
+                        if bl : #if the password was edited
+                            self.var.current_field_edited = None
+                        #a.widget().
                     a.widget().deleteLater() # shadow boxes if this line is changed
                     self.scroll_layout.removeItem(a)                    
                                  
@@ -302,166 +306,6 @@ class SimplePasswordKeeper(QMainWindow):
                 self.logger.add(f"Exception when deleting the password (position {i}): {e}",self.logger.error)        
         else:
             self.logger.add("No password was deleted",self.logger.warning)
-       
-    def createPasswordLayout(self,  name = "Test", password_text="Password", uuid = ""):
-        password_uuid= uuid_manager.uuid4() if uuid == "" else uuid
-        password_background=QWidget()
-        password_background.setStyleSheet(self.theme.get("password_background").to_config())       
-       
-        
-        password = QTextEdit()
-        show_button     = QCheckBox("Show") 
-        edit_button     = QCheckBox("Edit") 
-        main_password_layout   = QVBoxLayout()
-        top_password_layout = QHBoxLayout()
-        password_name = QLineEdit(name)  
-        supr_button = QPushButton("Del")
-        
-        password_name.setStyleSheet(self.theme.get("password_name").to_config())
-        password_name.textChanged.connect(self.onPasswordNameChange)
-
-        
-        pcolor = password.textColor()
-        pcolor = QColor(self.theme.get("password_background").get("color"))
-        print("The color is in file is ",self.theme.get("password").get("color"))
-        pcolor.setAlpha(190)
-        password.setTextColor(pcolor)
-        password.setText(password_text)        
-        password.setHidden(True)
-        show_button.setTristate(False)
-        show_button.setCheckable(True)
-        show_button.setChecked(False)
-        show_button.isChecked_=False 
-        show_button.toggled.connect(lambda : self.onEchoChange(password,show_button))  
-        show_button.setStyleSheet(self.theme.get("show_button").to_config())
-
-        edit_button.setStyleSheet(self.theme.get("edit_button").to_config())
-
-        edit_button.toggled.connect(lambda : self.onEditChange(password,edit_button))
-        edit_button.toggled_=False
-
-        
-        supr_button.setStyleSheet("QPushButton {"+self.theme.get("supr_button").to_config()+"} QPushButton:hover {"+self.theme.get("supr_button_hover").to_config()+"}")
-        supr_button.setDefault(True)
-                
-
-        password.setEnabled(False)
-        #password.setClearButtonEnabled(False)        
-        
-
-        
-        password.setStyleSheet(self.theme.get("password").to_config())
-        password.textChanged.connect(lambda : self.onPasswordFieldChange(password))
-        
-        
-        top_password_layout.addWidget(password_name)
-        top_password_layout.addWidget(show_button) 
-        top_password_layout.addWidget(edit_button) 
-        top_password_layout.addWidget(supr_button) 
-
-        main_password_layout.addLayout(top_password_layout)
-        main_password_layout.addWidget(password)   
-             
-        
-        password_background.setLayout(main_password_layout)
-        password_background.password_name=password_name
-        password_background.password=password
-        password_background.uuid=password_uuid
-        supr_button.clicked.connect(lambda: self.deletePassword(password_background,password_uuid))
-        
-        return password_background
-       
-    def onEchoChange(self, password_field  : QTextEdit, butt):  
-        
-        if butt.isChecked_==False :               
-            password_field.setHidden(False)   
-            password_field.setFixedHeight(max(password_field.document().size().height()+password_field.contentsMargins().top()+password_field.contentsMargins().bottom(),self.minimum_password_field_height))    
-            self.logger.add("The password is now displayed",self.logger.information)  
-            print("The color is ",password_field.textColor().toRgb())
-            butt.isChecked_=True  
-            self.current_shown_fields.append(password_field)            
-        else :             
-            password_field.setHidden(True)  
-            print("The color is (transparent)", password_field.textColor().toRgb())
-            self.logger.add("The password is now hidden",self.logger.information) 
-            butt.isChecked_=False
-            self.current_shown_fields.remove(password_field)
- 
-    def onEditChange(self, password_field  : QHBoxLayout, butt : QCheckBox): 
-        
-        if not butt.toggled_ and (not self.editing or self.current_field_edited==None or self.current_field_edited==password_field) :
-            password_field.setEnabled(True) 
-            butt.setChecked(True)    
-
-            if self.current_field_edited==password_field : self.current_field_edited.setEnabled(False)
-
-            self.current_field_edited=password_field
-            self.current_field_button=butt
-            butt.toggled_ = True 
-            self.editing = True              
-          
-            
-        elif not butt.toggled_ and self.current_field_edited!=password_field:
-            if self.current_field_edited == None:
-                self.logger.add("This isn't normal",self.logger.warning)
-            elif self.current_field_edited.toPlainText()!="":
-                password_field.setEnabled(True) 
-                butt.setChecked(True)                        
-                self.current_field_edited.setEnabled(False)
-                if self.current_field_button!=None:self.current_field_button.setChecked(False)
-                self.current_field_edited=password_field
-                self.current_field_button=butt
-                butt.toggled_ = True 
-                self.editing = True 
-            else:                
-                butt.setChecked(False)
-                self.current_field_button.setChecked(True)
-                self.indicator.temp_message("Empty field","red",1) 
-                
-        
-        elif butt.toggled_ and self.current_field_edited.toPlainText()=="":
-            password_field.setEnabled(False) 
-            butt.setChecked(True)                         
-            self.current_field_edited.setEnabled(True)
-            
-            self.current_field_edited = self.current_field_edited # no change
-            self.current_field_button = self.current_field_button # idem
-            butt.toggled_ = False 
-            self.editing = True
-
-            self.indicator.temp_message("Empty field","red",1)            
-            self.logger.add("The field is empty, the field will stay focused",self.logger.information)     
-
-
-
-        elif butt.toggled_ :
-            password_field.setEnabled(False) 
-            butt.setChecked(False)                         
-            self.current_field_edited.setEnabled(False)   
-
-            self.current_field_edited=None
-            self.current_field_button=None
-            butt.toggled_ = False 
-            self.editing = False 
-            self.logger.add("Untoggled",self.logger.success)
-            
-        else:
-            self.logger.add("There's something else ?",self.logger.warning)            
-
-    def onPasswordNameChange(self):
-        self.last_mouse_pos = (QCursor.pos() ,1)
-        self.indicator.set("Not saved","blue")
-
-    def onPasswordFieldChange(self, password_field  : QTextEdit):  
-        #self.file_manager.make_backup()  # to much backups !!!
-        self.indicator.set("Not saved","blue")
-        self.last_mouse_pos = (QCursor.pos() ,1)    
-        password_field.setFixedHeight(max(password_field.document().size().height()+password_field.contentsMargins().top()+password_field.contentsMargins().bottom(),self.minimum_password_field_height ))   
-
-        if password_field.toPlainText()=="":
-            password_field.setStyleSheet(self.theme.get("password_warning").to_config())        
-        else:
-            password_field.setStyleSheet(self.theme.get("password").to_config())
 
     def createScrollArea(self,content):
        
@@ -470,7 +314,7 @@ class SimplePasswordKeeper(QMainWindow):
         for el in content: 
             try:
                 name, password, uuid = el  
-                p_l=self.createPasswordLayout(name=name,password_text=password,uuid=uuid)             
+                p_l=spk_password.Password(self.var,name=name,password_text=password,uuid=uuid)            
                 l.addWidget(p_l)
             except Exception as e:
                 self.logger.add(f"THIS IS A BUG : Problem occured when trying to recreate the password layout, a password could be missing (Exception : {e})",self.logger.critical_error)
@@ -495,84 +339,18 @@ class SimplePasswordKeeper(QMainWindow):
 
     def getMousePos(self):
         global_pos =  QCursor.pos()  
-        if self.last_mouse_pos != ():
-            if global_pos == self.last_mouse_pos[0]:
-                self.last_mouse_pos = (global_pos,self.last_mouse_pos[1] + 1)
-                if self.last_mouse_pos[1] + 1 > self.settings.to_settings("timeout_delay") :
+        if self.var.last_mouse_pos != ():
+            if global_pos == self.var.last_mouse_pos[0]:
+                self.var.last_mouse_pos = (global_pos,self.var.last_mouse_pos[1] + 1)
+                if self.var.last_mouse_pos[1] + 1 > self.settings.to_settings("timeout_delay") : # delay check
                     self.logger.add(f"App timed out (timer was set to {self.settings.to_settings("timeout_delay")}s)",self.logger.information)
-                    self.close()            
-            else:
-                self.last_mouse_pos = (global_pos,1)
-        else : 
-            self.last_mouse_pos = (global_pos,1)
+                    self.close()
+                return              
+        self.var.resetMousePos()
+        return
+        
 
     def resizeEvent(self, event): #resize the current field  
-        for field in self.current_shown_fields:  
-            field.setFixedHeight(max(field.document().size().height()+field.contentsMargins().top()+field.contentsMargins().bottom(),100))   
-    
+        for pw in self.var.current_shown_fields:  
+            pw.resize()
       
-
-if __name__ == "__main__":
-    global_logs = logs.Logger(display=True,write_in_file=False,name = "global")
-    print(os.listdir())
-    with open("spk_settings.json") as json_settings_file:        
-        settings_c=json.load(json_settings_file)
-        
-    valid_args = ["backup_directory","dump_directory",
-                "file_directory","file_name","config_file",
-                "backups_silent","logs"]
-    for u_ in valid_args:
-        if not u_ in settings_c:
-            global_logs.add(f"Missing argument in config, the valid args are {valid_args}",global_logs.warning)
-    
-    default_settings  = {
-    "backup_directory" : ".spkbackups",
-    "dump_directory"   : ".spkdumps",
-    "backup_file" : "spk_backup_file.backup",
-    "file_directory"   : "",
-    "file_name"        : "spk_test_file",
-    "config_file"    : "spk.conf",
-    "backups_silent" : True,
-    "logs" : True,
-    "timeout_delay" : 60    
-    }
-
-    settings = spk_theme.ConfigDicts(settings_c,default=default_settings)
-      
-    theme = spk_theme.SpkTheme("spk.conf",settings=settings)    
-    font = QFont(theme.get("font").get("font"))    
-    font.setPixelSize(int(theme.get("font").get("size")))
-    
-    app = QApplication()  
-    app.setFont(font)
-    spk_app = SimplePasswordKeeper(dir="",theme=theme,settings=settings) 
-    app.setStyle(QStyleFactory.create(theme.get("global").get("global")))
-    spk_app.setStyleSheet(theme.get("background").to_config())     
-    
-    spk_app.show()
-    sys.exit(app.exec())
-   
-
-
-#BUG: deleting a password while modifing it!!!
-#BUG: empty settings file makes an error
-#BUG : the logic when untoggling is weird
-
-
-# TODO LIST:
-# - ~~change the theming system~~    
-# - be able to change the master password
-# - import passwords
-# - export passwords (copy the file :) ) 
-# - ~~change the salts -> write in file~~
-# - make the user able to change the saving directory -> json file
-# - json settings file
-# - ~~make BACKUPS~~
-# - make a main file | make it able to run with argparse
-# timeout 
-# save the file when closing the app
-# Ctrl + F ?
-# Sort / Minecraft world sort ?
-
-
-

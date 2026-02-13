@@ -56,7 +56,7 @@ class FileManager():
             self.content = content        
             self.file_logger.add("Contents changed",self.file_logger.information)
             return
-        self.file_logger.add("To delete the file content, please use the delete_content function instead (or the bypass_empty_restriction arg, not recommanded)| nothing was changed",self.file_logger.error)
+        self.file_logger.add("To delete the file content, please use the delete_content function instead (or the bypass_empty_restriction arg, not recommanded)| nothing was changed. If you see this message, it seems that there were no password, or that there is a BUG on password load",self.file_logger.error)
 
     def delete_content(self) -> None:
         self.content = ""
