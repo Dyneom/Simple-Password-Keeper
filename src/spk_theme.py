@@ -62,7 +62,8 @@ password {
     border-radius: 10px;
     padding: 6px;
     margin:10px;
-    width: 100%
+    width: 100%;
+    color : #d0d0d0
 }
 password_warning { 
     background-color: #b90101;
@@ -171,7 +172,7 @@ dialog_wrong_character_button = background-color: #505050; border-radius: 1px; p
         
         return d            
 
-    def get(self,value):
+    def get(self,value) -> ConfigDicts:
         if self.config.get(value) != None: 
             return ConfigDicts(self.config.get(value)) 
         elif self.default_config.get(value) != None: 
