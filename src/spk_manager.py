@@ -200,8 +200,15 @@ class SimplePasswordKeeper(QMainWindow):
         save_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
         save_shortcut.activated.connect(self.save)
 
+        new_password_shortcut = QShortcut(QKeySequence("Ctrl+N"), self)
+        new_password_shortcut.activated.connect(self.newPassword)
+
+        quit_shortcut = QShortcut(QKeySequence("Ctrl+Q"), self)
+        quit_shortcut.activated.connect(self.close)        
+
         debug_shortcut = QShortcut(QKeySequence("Ctrl+O"), self)
-        debug_shortcut.activated.connect(self.getMousePos)
+        debug_shortcut.activated.connect(lambda : self.search("choco"))
+
 
         #TIMERS
         self.timer = QTimer(self)
@@ -267,6 +274,8 @@ class SimplePasswordKeeper(QMainWindow):
         self.scroll_layout.addWidget(new_pass_lay) # addWidget
         self.scroll_layout.addStretch()
         self.logger.add("Created new password",self.logger.success)
+        self.indicator.set("Not saved","blue")
+        self.indicator.temp_message("Created password","gold",1)
             
     def deletePassword(self,passw_uuid : uuid_manager.UUID):
         msg = QMessageBox()
@@ -306,6 +315,8 @@ class SimplePasswordKeeper(QMainWindow):
                 self.logger.add(f"Exception when deleting the password (position {i}): {e}",self.logger.error)        
         else:
             self.logger.add("No password was deleted",self.logger.warning)
+        self.indicator.set("Not saved","blue")
+        self.indicator.temp_message("Deleted password","orange",1)
 
     def createScrollArea(self,content):
        
@@ -353,4 +364,16 @@ class SimplePasswordKeeper(QMainWindow):
     def resizeEvent(self, event): #resize the current field  
         for pw in self.var.current_shown_fields:  
             pw.resize()
+
+    def search(self, word :str):
+        for pw in self.var.password_list:
+            found: bool = pw.find(word)
+            if found : 
+                print("Show")
+                pw.show()
+            else:
+                print("Hide")
+                pw.hide()
+                
+        
       

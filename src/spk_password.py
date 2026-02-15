@@ -89,7 +89,7 @@ class Password(QWidget):
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.setStyleSheet(self.var.theme.get("password_background").to_config())  
 
-
+        self.var.password_list.append(self)
         
         
         
@@ -183,4 +183,14 @@ class Password(QWidget):
     
     def isEmpty(self):
         return self.getText()==""
+    
+    def show(self):
+        self.setHidden(False)
+
+    def hide(self):
+        self.setHidden(True)
+
+    def find(self,word):
+        return self.password_name.text().find(word) != -1 or self.getText().find(word) != -1
+    
 

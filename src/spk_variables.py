@@ -18,6 +18,7 @@ class SpkVariables():
         self.editing = editing
         self.manager = None
         self.minimum_password_field_height = 30
+        self.password_list = []
 
     def loadConfig(self,path: str):     
 

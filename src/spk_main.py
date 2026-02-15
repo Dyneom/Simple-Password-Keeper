@@ -44,8 +44,8 @@ if __name__ == "__main__":
 # - json settings file
 # - ~~make BACKUPS~~
 # - make a main file | make it able to run with argparse
-# timeout 
-# save the file when closing the app
+# ~~timeout~~ 
+# ~~save the file when closing the app~~
 # Ctrl + F ?
 # Sort / Minecraft world sort ?
 
