@@ -7,10 +7,13 @@ from PySide6.QtWidgets import (QCheckBox, QHBoxLayout, QVBoxLayout,
                                QPushButton,   QTextEdit   , QSizePolicy      
                             )
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QSize
+from rapidfuzz import process, fuzz
 #spk
 import logs
 import spk_variables
+
+
 
 class Password(QWidget): 
     def __init__(self, variables : spk_variables.SpkVariables, name = "Test", password_text="Password", uuid = ""):
@@ -29,6 +32,7 @@ class Password(QWidget):
         self.supr_button = QPushButton("Del")  
         self.isEdited = False
         self.isShown = False
+        self.config_height = int(self.var.theme.get("password_size").get("password_size"))
 
                   
         
@@ -88,7 +92,7 @@ class Password(QWidget):
         #self.var.password_list = []
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.setStyleSheet(self.var.theme.get("password_background").to_config())  
-
+        self.setMaximumHeight(self.config_height)        
         self.var.password_list.append(self)
         
         
@@ -102,6 +106,8 @@ class Password(QWidget):
             self.logger.add("The password is now displayed",self.logger.information)              
             self.isShown = True  
             self.var.current_shown_fields.append(self.password_field)
+            self.setMaximumHeight(1000000)
+            
 
                      
         else :         
@@ -109,6 +115,7 @@ class Password(QWidget):
             self.resize(0)                      
             self.logger.add("The password is now hidden",self.logger.information) 
             self.isShown = False
+            self.setMaximumHeight(self.config_height)
             if self in self.var.current_shown_fields : self.var.current_shown_fields.remove(self) # it should be 
  
     def onEditChange(self): 
@@ -190,7 +197,15 @@ class Password(QWidget):
     def hide(self):
         self.setHidden(True)
 
-    def find(self,word):
-        return self.password_name.text().find(word) != -1 or self.getText().find(word) != -1
+    def find(self,word: str):
+        if word == "": return True
+        threshold = 80        
+        name = process.extract(word.lower(), self.password_name.text().lower().split(), scorer=fuzz.WRatio)
+        pw = process.extract(word.lower(), self.getText().lower().split(), scorer=fuzz.WRatio)
+        is_in_name = False
+        is_in_pw = False
+        if len(name)> 0 : is_in_name = name[0][1]> threshold
+        elif len(pw)> 0 : is_in_pw = pw[0][1]> threshold        
+        return is_in_name or is_in_pw
     
 

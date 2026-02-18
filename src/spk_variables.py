@@ -10,7 +10,7 @@ class SpkVariables():
     def __init__(self,indicator = None,settings = None,theme = None,last_mouse_pos : tuple= None,current_field_edited : spk_password.Password = None,current_shown_fields : list[spk_password.Password] = None,editing :bool = None):
         self.indicator = indicator
         self.settings = settings
-        self.theme = theme
+        self.theme: spk_theme.SpkTheme | None = theme  
         self.global_logs = Logger(display=True,write_in_file=False,name = "global")
         self.last_mouse_pos = last_mouse_pos
         self.current_field_edited = current_field_edited

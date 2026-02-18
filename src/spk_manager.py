@@ -29,6 +29,7 @@ import spk_theme
 import spk_indicator
 import spk_password
 import spk_variables
+import spk_search_field
 
 
 class SimplePasswordKeeper(QMainWindow):
@@ -82,11 +83,7 @@ class SimplePasswordKeeper(QMainWindow):
             self.init_passwords()
 
         self.logger.add(f"Init finished | Launching app (result : {result})",self.logger.success)
-
  
-
-    
-
     def loadPasswords(self):
         self.file_manager.load_encrypted_content()
         worked = self.file_manager.decrypt_content()
@@ -184,7 +181,7 @@ class SimplePasswordKeeper(QMainWindow):
         button_new_p = QAction("New password field", self)        
         button_new_p.triggered.connect(self.newPassword)
         toolbar.addAction(button_new_p) 
-        self.main_layout = main_layout  
+         
 
         spacer =  QWidget()       
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -222,7 +219,9 @@ class SimplePasswordKeeper(QMainWindow):
         self.timer2.start(1000)
 
         #END -> loadPassword
-        self.loadPasswords()         
+        self.main_layout = main_layout 
+        self.main_layout.addWidget(spk_search_field.SearchField(self.var),0,1)
+        self.loadPasswords()   
        
     def save(self,isbackup : bool = False): # TODO : a popup when saving password : keep the same or change
         c=self.scroll_layout.count()
@@ -264,15 +263,16 @@ class SimplePasswordKeeper(QMainWindow):
         
         new_pass_lay=spk_password.Password(self.var,name = "New Password",password_text = "")
         
-        try:
-            stretch = self.scroll_layout.takeAt(self.scroll_layout.count() -1 )                   
-            if isinstance(stretch,QSpacerItem) :             
-                del stretch   
-        except AttributeError:
-            self.logger.add("Failed to remove stretch (if the main layout wasn't empty this is a bug)",self.logger.warning)      
+        # try:
+        #     stretch = self.scroll_layout.takeAt(self.scroll_layout.count() -1 )                   
+        #     if isinstance(stretch,QSpacerItem) :             
+        #         del stretch   
+        # except AttributeError:
+        #     self.logger.add("Failed to remove stretch (if the main layout wasn't empty this is a bug)",self.logger.warning)      
         
-        self.scroll_layout.addWidget(new_pass_lay) # addWidget
-        self.scroll_layout.addStretch()
+        # self.scroll_layout.addWidget(new_pass_lay) # addWidget
+        # self.scroll_layout.addStretch()
+        self.scroll_layout.insertWidget(0,new_pass_lay)
         self.logger.add("Created new password",self.logger.success)
         self.indicator.set("Not saved","blue")
         self.indicator.temp_message("Created password","gold",1)
@@ -334,7 +334,7 @@ class SimplePasswordKeeper(QMainWindow):
         scroll.setWidgetResizable(True)
         scroll.setWidget(w)                # Scroll <- widget <- layout <- password layout 
         l.addStretch() 
-        self.main_layout.addWidget(scroll, 0 , 1)  
+        self.main_layout.addWidget(scroll, 1 , 1)  
         self.scroll_layout = l   
         self.logger.add("Created scroll area",self.logger.success)            
         return scroll
@@ -359,8 +359,7 @@ class SimplePasswordKeeper(QMainWindow):
                 return              
         self.var.resetMousePos()
         return
-        
-
+      
     def resizeEvent(self, event): #resize the current field  
         for pw in self.var.current_shown_fields:  
             pw.resize()
@@ -368,11 +367,9 @@ class SimplePasswordKeeper(QMainWindow):
     def search(self, word :str):
         for pw in self.var.password_list:
             found: bool = pw.find(word)
-            if found : 
-                print("Show")
+            if found :                 
                 pw.show()
-            else:
-                print("Hide")
+            else:                
                 pw.hide()
                 
         

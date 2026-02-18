@@ -20,14 +20,14 @@ class Logger():
         self.display=display
         self.write_in_file=write_in_file        
         self.name=name
-
-        try :        
-            with open(".count_logs"+self.name+".txt") as f:
-                self.counter = int(f.read())
-        except :
-            self.counter = 0
-            with open(".count_logs"+self.name+".txt","w") as f:
-                f.write(str(self.counter))
+        if write_in_file :
+            try :        
+                with open(".count_logs"+self.name+".txt") as f:
+                    self.counter = int(f.read())
+            except :
+                self.counter = 0
+                with open(".count_logs"+self.name+".txt","w") as f:
+                    f.write(str(self.counter))
 
 
     def add(self, message, rank="information") -> None:    

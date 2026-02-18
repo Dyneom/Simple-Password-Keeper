@@ -20,7 +20,7 @@ class Spk_Indicator(QWidget):
         self.text_label = QLabel(text.rjust(12))
         self.layout = QHBoxLayout()
         self.icon = QLabel()
-        self.icon_name = "fa6s.circle"
+        self.icon_name = "fa6s.circle"        
         self.last_color = color
         self.last_text = text.rjust(12) 
 
