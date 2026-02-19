@@ -1,14 +1,18 @@
 import uuid as uuid_manager
 
-from PySide6.QtGui import QColor, QCursor
+from PySide6.QtGui import QColor
 
-from PySide6.QtWidgets import (QCheckBox, QHBoxLayout, QVBoxLayout, 
-                               QWidget, QLineEdit, 
-                               QPushButton,   QTextEdit   , QSizePolicy      
+from PySide6.QtWidgets import (
+                            QCheckBox, QHBoxLayout, QVBoxLayout, 
+                            QWidget, QLineEdit, QPushButton,   
+                            QTextEdit 
                             )
 
-from PySide6.QtCore import Qt, QTimer, QSize
+from PySide6.QtCore import Qt
 from rapidfuzz import process, fuzz
+
+
+
 #spk
 import logs
 import spk_variables
@@ -23,6 +27,7 @@ class Password(QWidget):
         self.uuid= uuid_manager.uuid4() if uuid == "" else uuid        
         self.logger = logs.Logger(display=True,write_in_file=False,name="Password ("+str(uuid)+")")
         self.var = variables
+
         self.password_field = QTextEdit()        
         self.main_password_layout   = QVBoxLayout()       
         self.top_password_layout = QHBoxLayout()             
@@ -44,7 +49,8 @@ class Password(QWidget):
         pcolor = self.password_field.textColor()
         pcolor = QColor(self.var.theme.get("password_background").get("color"))
         
-        pcolor.setAlpha(190)
+        pcolor.setAlpha(int(self.var.theme.get("password_color_alpha").get("password_color_alpha")))
+        self.pcolor = pcolor
         self.password_field.setTextColor(pcolor)
         self.password_field.setText(password_text)        
         self.password_field.setHidden(False) 
@@ -52,7 +58,7 @@ class Password(QWidget):
         self.password_field.setEnabled(False) # read only
         self.password_field.setStyleSheet(self.var.theme.get("password").to_config())
         self.password_field.textChanged.connect(self.onPasswordFieldChange)
-                
+        
 
         #"SHOW" BUTTON
         self.show_button.setTristate(False)
@@ -94,10 +100,7 @@ class Password(QWidget):
         self.setStyleSheet(self.var.theme.get("password_background").to_config())  
         self.setMaximumHeight(self.config_height)        
         self.var.password_list.append(self)
-        
-        
-        
-    
+
     def onEchoChange(self):         
         if self.isShown == False :         
                
@@ -156,14 +159,7 @@ class Password(QWidget):
             self.var.manager.setUpdatesEnabled(False) 
             self.password_field.setFixedHeight(target_height)                             
             self.var.manager.setUpdatesEnabled(True)
-
-
-        
-            
-            
-           
-           
-        
+            self.password_field.setTextColor(self.pcolor)
 
     def untoggleEditing(self): 
         wasEdited = self.isEdited
@@ -171,8 +167,6 @@ class Password(QWidget):
         self.password_field.setEnabled(False)
         self.edit_button.setChecked(False)
         return True
-        
-
 
     def toggleEditing(self):
         self.isEdited = True
@@ -181,8 +175,6 @@ class Password(QWidget):
 
         #Show password        
         self.show_button.setChecked(True) # will call onEchoChange
-        
-
 
     def getText(self):
         return self.password_field.toPlainText()

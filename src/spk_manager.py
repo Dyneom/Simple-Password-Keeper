@@ -3,29 +3,27 @@ from hashlib import pbkdf2_hmac # sha256
 
 
 
-from PySide6.QtGui import QAction, QFont, QIcon, QShortcut, QKeySequence, QCursor, QColor
+from PySide6.QtGui import QAction, QIcon, QShortcut, QKeySequence, QCursor
 
-from PySide6.QtWidgets import (QApplication, QCheckBox, 
-                            QGridLayout,  QHBoxLayout, 
-                            QStyleFactory, QVBoxLayout, 
-                            QWidget, QScrollArea, QToolBar,
-                            QMainWindow, QLineEdit, QSpacerItem,
-                            QPushButton, QMessageBox, QWidgetItem, QInputDialog, QLabel, QSizePolicy,
-                            QTextEdit         
+from PySide6.QtWidgets import ( 
+                            QGridLayout, QVBoxLayout, QWidget, 
+                            QScrollArea, QToolBar, QMainWindow, 
+                            QLineEdit, QSpacerItem, QMessageBox, 
+                            QWidgetItem, QInputDialog,  QSizePolicy                                     
                             )
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, Qt
+
+
 
 import uuid as uuid_manager
 import argon2
 import base64
-import json
 from cryptography.fernet import Fernet
 
 #spk
 import logs
 import spk_file_manager
-import spk_theme
 import spk_indicator
 import spk_password
 import spk_variables
@@ -204,7 +202,7 @@ class SimplePasswordKeeper(QMainWindow):
         quit_shortcut.activated.connect(self.close)        
 
         debug_shortcut = QShortcut(QKeySequence("Ctrl+O"), self)
-        debug_shortcut.activated.connect(lambda : self.search("choco"))
+        #debug_shortcut.activated.connect(lambda : print(self.scroll2.scrollBarWidgets(Qt.AlignmentFlag.AlignRight)))
 
 
         #TIMERS
@@ -304,9 +302,17 @@ class SimplePasswordKeeper(QMainWindow):
                         bl = a.widget().untoggleEditing()
                         if bl : #if the password was edited
                             self.var.current_field_edited = None
-                        #a.widget().
+                        if a.widget() in self.var.current_shown_fields :
+                            self.var.current_shown_fields.remove(a)
+                    if a.widget() in self.var.password_list:
+                        self.var.password_list.remove(a.widget())
+                        print("the password was removed from the list")
+                        
                     a.widget().deleteLater() # shadow boxes if this line is changed
-                    self.scroll_layout.removeItem(a)                    
+                    self.scroll_layout.removeItem(a) 
+                    
+                    
+
                                  
                     self.logger.add(f"Successfully deleted the password ({tmp_uuid})",self.logger.success) 
                     self.scroll_layout.addStretch()                   
@@ -314,7 +320,7 @@ class SimplePasswordKeeper(QMainWindow):
             except Exception as e:
                 self.logger.add(f"Exception when deleting the password (position {i}): {e}",self.logger.error)        
         else:
-            self.logger.add("No password was deleted",self.logger.warning)
+            self.logger.add("No password were deleted",self.logger.warning)
         self.indicator.set("Not saved","blue")
         self.indicator.temp_message("Deleted password","orange",1)
 
@@ -335,8 +341,20 @@ class SimplePasswordKeeper(QMainWindow):
         scroll.setWidget(w)                # Scroll <- widget <- layout <- password layout 
         l.addStretch() 
         self.main_layout.addWidget(scroll, 1 , 1)  
-        self.scroll_layout = l   
-        self.logger.add("Created scroll area",self.logger.success)            
+        self.scroll_layout = l 
+        self.scroll2 = scroll  
+        scroll.setStyleSheet(f"""QScrollBar:vertical {chr(123)} 
+                                {self.var.theme.get("scroll_bar_background").to_config()}
+                            {chr(125)}
+                             QScrollBar::handle:vertical {chr(123)}
+                                {self.var.theme.get("scroll_bar").to_config()}
+                            {chr(125)}
+                            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {chr(123)}
+                               {self.var.theme.get("scroll_bar_buttons").to_config()}
+                            {chr(125)}""")
+        
+        
+        self.logger.add("Created scroll area",self.logger.success)  
         return scroll
 
     def close(self):

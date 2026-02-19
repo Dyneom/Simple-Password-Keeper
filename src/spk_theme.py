@@ -3,7 +3,7 @@
 import logs
 import random
 import spk_theme
-
+import os
 class SpkTheme():
     #TODO : change the default config to be in a file
     _default_config = """background {
@@ -15,7 +15,15 @@ password_background {
     background-color: #606060;
     border-radius: 10px;
     height: 20%;
+}
+
+search { 
+    background-color: #3a3a3a;
+    border: 4px solid #525252;
+    border-radius: 7px;    
+    height: 20%;
     width: 100%;
+    padding : 2%
 }
 
 password_name {
@@ -63,7 +71,8 @@ password {
     padding: 6px;
     margin:10px;
     width: 100%;
-    color : #d0d0d0
+    height: 10px;
+    color : #f0f0f0
 }
 password_warning { 
     background-color: #b90101;
@@ -88,15 +97,24 @@ dialog_password_buttons = background-color: #202020; color : #c0c0c0; padding: 1
 
 dialog_wrong_character = background-color: #505050; border-radius: 1px; padding: 10px; margin:10px; width: 100%; height:20%
 dialog_wrong_character_button = background-color: #505050; border-radius: 1px; padding: 10px; margin:10px; width: 100%; height:20%
-        
+
+password_size = 80
     """
 
 
     def __init__(self,config_file_dir,settings : spk_theme.ConfigDicts):
         self.logger = logs.Logger(display=settings.to_settings("logs"),write_in_file=False,name="theme")
         self.logger.add("Theme Class created",self.logger.success)
+
+        if config_file_dir not in os.listdir() :
+            self.logger.add(f"Failed to find the theme file ({config_file_dir}). The current directory is {os.getcwd()}",self.logger.error)
+            self.config = {}
+            self.default_config = self.parse(self._default_config)
+            return
+        
         with open(config_file_dir,"r",encoding="utf8") as f:
-            contents = f.read()        
+            contents = f.read()   
+
         self.config = self.parse(contents)  
         self.default_config = self.parse(self._default_config)
   
