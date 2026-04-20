@@ -20,7 +20,7 @@ import uuid as uuid_manager
 import argon2
 import base64
 from cryptography.fernet import Fernet
-
+#TODO : Faire en sorte qu'un fichier / dossier ne soit pas faisable avec un uuid déjà utilisé !!!!!!!!!! 
 #spk
 import logs
 import spk_file_manager
@@ -28,6 +28,107 @@ import spk_indicator
 import spk_password
 import spk_variables
 import spk_search_field
+import spk_folder
+
+def contains(string:str, l: list[str]) -> bool:
+    for i in l:
+        if string.find(i)!=-1: return True
+    return False
+
+class WrongFileSyntax(Exception): pass
+
+def get_next(s : str, chars): 
+    if chars == []:
+        raise ValueError("The character array is empty")
+    if len(chars) == 1:
+        v = s.find(chars[0])
+        if v == -1:
+            raise WrongFileSyntax(f"The end of the file was reached without finding {chars[0]}")
+        return v
+    if isinstance(chars,str):
+        v = s.find(chars)
+        if v == -1:
+            raise WrongFileSyntax(f"The end of the file was reached without finding {chars}")
+        return v
+    
+
+
+    u = []
+    for c in chars:
+        u.append((s.find(c),c))
+    max_v = -2 # will be replaced even if the first value wasn't found 
+    min_val = (-1,u[0][1]) #val, char
+    for i in range(0,len(u)):
+        if u[i][0] > max_v:
+            max_v = u[i][0]
+        if min_val[0] == -1 or (u[i][0] < min_val[0] and u[i][0] != -1):
+            min_val = u[i]
+
+        
+    if max_v == -1:    
+        raise WrongFileSyntax(f"The end of the file was reached without finding any of {chars}")
+    elif max_v == -2:
+        raise Exception("This shouldn't happen. The str.find should return at least -1 not -2 or less")
+    if min_val[0] == -1:
+        raise WrongFileSyntax(f"The end of the file was reached without finding any of {chars}. You shouldn't see this error if the code worked")
+
+    return min_val
+
+
+
+
+def save_to_layout(s:str,vars: spk_variables.SpkVariables): # input is the decrypted save, output is the root with all the passwords and folders in it
+    chr1,chr2,chr3,chr4 = vars.character
+    
+    root = vars.root
+    stack = [root]
+    while stack != [] and s != "":
+        i,chr = get_next(s,[chr1,chr2,chr3]) # must handle the error 
+        if chr == chr1: #password
+
+            s = s[i+1:] 
+
+            name_end = get_next(s,chr)
+            name = s[:name_end]
+            s = s[name_end+1:] 
+
+            uuid_end = get_next(s,chr)          
+            uuid = s[:uuid_end]
+            s = s[uuid_end+1:]
+
+            if s != "":
+                pw_end,_ = get_next(s,[chr1,chr2,chr3])          
+                pw = s[:max(0,pw_end-1)]
+                s = s[pw_end:]
+            else:
+                pw = ""
+
+            stack[-1].addChild(spk_password.Password(vars,name,pw,uuid,parent=stack[-1]))            
+        elif chr == chr2: # folder
+            s = s[i+1:] 
+
+
+            name_end = get_next(s,chr)
+            name = s[:name_end]
+            s = s[name_end+1:] 
+            
+
+            uuid_end = get_next(s,chr)          
+            uuid = s[:uuid_end]
+            s = s[uuid_end+1:]
+            f = spk_folder.Folder(variables=vars,name=name,children=[],uuid=uuid,parent=stack[-1])
+            stack[-1].addChild(f)            
+            stack.append(f)
+            
+        elif chr == chr3: #end of a folder
+            s = s[i+1:]
+            stack.pop()
+    
+
+
+            
+
+        
 
 
 class SimplePasswordKeeper(QMainWindow):
@@ -83,16 +184,19 @@ class SimplePasswordKeeper(QMainWindow):
         self.logger.add(f"Init finished | Launching app (result : {result})",self.logger.success)
  
     def loadPasswords(self):
+        chr1,chr2,chr3,chr4 = self.var.character
         self.file_manager.load_encrypted_content()
         worked = self.file_manager.decrypt_content()
         if worked:
             pw_list = []
             content = self.file_manager.get_content()
-            if content != "":
-                content_list = content.split("ᓡ")
-                pw_list = [ tuple(i.split("◃")) for i in content_list]
-              
-            self.createScrollArea(pw_list)
+            if content != "":                
+                try:
+                    save_to_layout(content,self.var)    #automaticaly set it to root               
+                except NotADirectoryError as e:
+                    self.logger.add(f"THIS IS A BUG : Problem occured when trying to recreate the password layout, a password could be missing (Exception : {e})",self.logger.critical_error) #you can add "when extracting : {content}" to know what makes the error (it isn't done due to security reasons)
+                                  
+            self.createArea()
    
     def verify_password(self,hash,password_hasher,salt,iter,pw) -> bool:
         try:
@@ -179,6 +283,12 @@ class SimplePasswordKeeper(QMainWindow):
         button_new_p = QAction("New password field", self)        
         button_new_p.triggered.connect(self.newPassword)
         toolbar.addAction(button_new_p) 
+
+        button_new_f = QAction("New Folder", self)        
+        button_new_f.triggered.connect(self.newFolder)
+        toolbar.addAction(button_new_f) 
+         
+        
          
 
         spacer =  QWidget()       
@@ -198,12 +308,14 @@ class SimplePasswordKeeper(QMainWindow):
         new_password_shortcut = QShortcut(QKeySequence("Ctrl+N"), self)
         new_password_shortcut.activated.connect(self.newPassword)
 
+        new_folder_shortcut = QShortcut(QKeySequence("Ctrl+SHIFT+N"), self)
+        new_folder_shortcut.activated.connect(self.newFolder)
+
         quit_shortcut = QShortcut(QKeySequence("Ctrl+Q"), self)
         quit_shortcut.activated.connect(self.close)        
 
         debug_shortcut = QShortcut(QKeySequence("Ctrl+O"), self)
-        #debug_shortcut.activated.connect(lambda : print(self.scroll2.scrollBarWidgets(Qt.AlignmentFlag.AlignRight)))
-
+        debug_shortcut.activated.connect(self.go_parent)
 
         #TIMERS
         self.timer = QTimer(self)
@@ -219,47 +331,87 @@ class SimplePasswordKeeper(QMainWindow):
         #END -> loadPassword
         self.main_layout = main_layout 
         self.main_layout.addWidget(spk_search_field.SearchField(self.var),0,1)
-        self.loadPasswords()   
+        self.loadPasswords()          
        
     def save(self,isbackup : bool = False): # TODO : a popup when saving password : keep the same or change
+        chr1,chr2,chr3,chr4 = self.var.character        
         c=self.scroll_layout.count()
-        passwords= []
-        passwords_names= []
-        for i in range(c):
-            a=self.scroll_layout.itemAt(i)
+        passwords= []        
+        csv_to_encrypt = "" 
+        
 
-            if isinstance(a,QWidgetItem):
-                w=a.widget()                
-                if w.password_name.text() in passwords_names: # doubles
-                    self.logger.add("Two or more passwords have the same name", self.logger.warning)
 
-                name : str = w.password_name.text()
-                pw=w.getText()
-                passwords_names.append(name)       # for keeping track of double names
-                passwords.append(( name, pw,w.uuid )) # for saving  
+        def create_folder_string(folder,string) -> str:
+            name = folder.getName()
+            uuid = folder.uuid
+            string += chr2+name+chr2+str(uuid)+chr2            
+            for el in folder.getChildren(copy=False):
+                if isinstance(el,spk_folder.Folder) : 
+                    string=create_folder_string(el,string)                    
+                elif isinstance(el,spk_password.Password):
+                    string+=el.to_save_string()
+            string+=chr3
+            return string
+        
+
+        for w in self.var.root.getChildren():  
+                                                     
+
+                if isinstance(w,spk_password.Password) :     
+                    csv_to_encrypt += w.to_save_string()
                 
-                if name.find("◃") != -1 or name.find("ᓡ") != -1 or pw.find("◃") != -1 or pw.find("ᓡ") != -1: # to keep the save for being unreadable
-                    self.wrong_character_popup()
-                    return   
+                elif isinstance(w,spk_folder.Folder):
+                    csv_to_encrypt+=create_folder_string(folder=w,string="")
+                #     prof = 1  
+                #     print("Found folder")                  
+                #     layers = [(w,prof)] # stack
+                #     while len(layers) != 0:
+                #         print("Profondeur :",prof, "layers: ",layers)
+                #         f,current_prof = layers.pop()
+                #         name = f.getName()
+                #         uuid = f.uuid
+                #         csv_to_encrypt += chr2+name+chr2+str(uuid)+chr2
+                #         children = f.getChildren()
+                #         if current_prof>prof:
+                #             print("Error on prof",current_prof,prof)
+                #         elif current_prof == prof :
+                #             print("OK prof")
+                #         else:
+                #             prof -= 1
+                #             csv_to_encrypt+=chr3
+
+                #         if len(children) == 0 : 
+                #             csv_to_encrypt+=chr3
+                #             prof -= 1 
+                #         else:
+                #             for i in children:
+                #                 if isinstance(i,spk_password.Password) :     
+                #                     csv_to_encrypt += i.to_save_string()
+                #                 elif isinstance(i,spk_folder.Folder):  
+                #                     prof += 1                              
+                #                     layers.append((i,prof)) 
+                                                                   
+
+                    
                 
-        csv_to_encrypt = ""            
-        for name, password, uuid in passwords : #not optimized
-            csv_to_encrypt+=name+"◃"+password+"◃"+str(uuid)+"ᓡ"
-        self.file_manager.set_content(csv_to_encrypt[:-1]) # remove "ᓡ" at the end
+                    
+                  
+        
+        self.file_manager.set_content(csv_to_encrypt) 
         self.file_manager.encrypt_content(is_backup= isbackup)
-        self.file_manager.save(is_backup= isbackup)
-        del passwords_names 
+        self.file_manager.save(is_backup= isbackup)        
         if not isbackup : self.indicator.set("Saved","green") 
         else : self.indicator.temp_message("Backed up",('green', 200),1)
-        
+
+#save file 
+#password : chr1, name , chr1, uuid, chr1 , password
+#folder : chr2, name , chr2, uuid , chr2 , children        
                         
         
-           #◃ 
-           #ᓡ
-                 
+           
     def newPassword(self):
         
-        new_pass_lay=spk_password.Password(self.var,name = "New Password",password_text = "")
+        new_pass_lay=spk_password.Password(self.var,name = "New Password",password_text = "",parent=self.var.current_node)
         
         # try:
         #     stretch = self.scroll_layout.takeAt(self.scroll_layout.count() -1 )                   
@@ -270,16 +422,25 @@ class SimplePasswordKeeper(QMainWindow):
         
         # self.scroll_layout.addWidget(new_pass_lay) # addWidget
         # self.scroll_layout.addStretch()
-        self.scroll_layout.insertWidget(0,new_pass_lay)
+        self.var.current_node.getChildren(copy=False).insert(0,new_pass_lay)
+        self.scroll_layout.insertWidget(0,new_pass_lay)        
         self.logger.add("Created new password",self.logger.success)
         self.indicator.set("Not saved","blue")
         self.indicator.temp_message("Created password","gold",1)
-            
-    def deletePassword(self,passw_uuid : uuid_manager.UUID):
+    
+    def newFolder(self):        
+        new_folder_lay=spk_folder.Folder(self.var,children=[],name = "New Folder",parent=self.var.current_node)       
+        self.var.current_node.getChildren(copy=False).insert(0,new_folder_lay)       
+        self.scroll_layout.insertWidget(0,new_folder_lay)
+        self.logger.add("Created new folder",self.logger.success)
+        self.indicator.set("Not saved","blue")
+        self.indicator.temp_message("Created folder","gold",1)
+
+    def deleteItem(self,passw_uuid : uuid_manager.UUID):
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Question)
         msg.setWindowTitle("Confirmation")
-        msg.setText("Are you sure you want to delete this password?")
+        msg.setText("Are you sure you want to delete this item?")
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
    
         response = msg.exec()
@@ -298,23 +459,29 @@ class SimplePasswordKeeper(QMainWindow):
                 if tmp_uuid==passw_uuid :
                     self.logger.add(f"Deleting password in position {i} (uuid: {tmp_uuid})") 
                     a=self.scroll_layout.itemAt(i)
-                    if isinstance(a.widget(),spk_password.Password) : 
+                    if isinstance(a.widget(),spk_password.Password) :                         
                         bl = a.widget().untoggleEditing()
+                        a.widget().parent_folder.getChildren().remove(a.widget())
                         if bl : #if the password was edited
                             self.var.current_field_edited = None
                         if a.widget() in self.var.current_shown_fields :
                             self.var.current_shown_fields.remove(a)
+                    elif isinstance(a.widget(),spk_folder.Folder):
+                        a.widget().parent_folder.getChildren().remove(a.widget())
+                        pass
                     if a.widget() in self.var.password_list:
                         self.var.password_list.remove(a.widget())
-                        print("the password was removed from the list")
                         
+                       
+
+                       
                     a.widget().deleteLater() # shadow boxes if this line is changed
                     self.scroll_layout.removeItem(a) 
                     
                     
-
+                    
                                  
-                    self.logger.add(f"Successfully deleted the password ({tmp_uuid})",self.logger.success) 
+                    self.logger.add(f"Successfully deleted the item ({tmp_uuid})",self.logger.success) 
                     self.scroll_layout.addStretch()                   
                     break                    
             except Exception as e:
@@ -324,24 +491,18 @@ class SimplePasswordKeeper(QMainWindow):
         self.indicator.set("Not saved","blue")
         self.indicator.temp_message("Deleted password","orange",1)
 
-    def createScrollArea(self,content):
-       
-        w=QWidget()
-        l=QVBoxLayout(w)        
-        for el in content: 
-            try:
-                name, password, uuid = el  
-                p_l=spk_password.Password(self.var,name=name,password_text=password,uuid=uuid)            
-                l.addWidget(p_l)
-            except Exception as e:
-                self.logger.add(f"THIS IS A BUG : Problem occured when trying to recreate the password layout, a password could be missing (Exception : {e})",self.logger.critical_error)
-             
+    def createArea(self): 
+        widget=QWidget()
+        item_layout=QVBoxLayout(widget) 
+        for el in self.var.current_node.getChildren():
+            item_layout.addWidget(el)
+
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setWidget(w)                # Scroll <- widget <- layout <- password layout 
-        l.addStretch() 
+        scroll.setWidget(widget)                # Scroll <- widget <- <- item layout
+        item_layout.addStretch() 
         self.main_layout.addWidget(scroll, 1 , 1)  
-        self.scroll_layout = l 
+        self.scroll_layout = item_layout 
         self.scroll2 = scroll  
         scroll.setStyleSheet(f"""QScrollBar:vertical {chr(123)} 
                                 {self.var.theme.get("scroll_bar_background").to_config()}
@@ -356,7 +517,7 @@ class SimplePasswordKeeper(QMainWindow):
         
         self.logger.add("Created scroll area",self.logger.success)  
         return scroll
-
+        
     def close(self):
         self.save()
         exit()
@@ -389,6 +550,14 @@ class SimplePasswordKeeper(QMainWindow):
                 pw.show()
             else:                
                 pw.hide()
-                
+
+    def go_parent(self):  
+        if self.var.current_node != self.var.root:      
+            self.var.current_node = self.var.current_node.parent_folder
+            
+            self.createArea()
+        #self.current_node = 
+
+
         
       

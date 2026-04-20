@@ -18,13 +18,23 @@ import logs
 import spk_variables
 
 
+def contains(string:str, l: list[str]) -> bool:
+    for i in l:
+        if string.find(i)!=-1: return True
+    return False
+
 
 class Password(QWidget): 
-    def __init__(self, variables : spk_variables.SpkVariables, name = "Test", password_text="Password", uuid = ""):
+    def __init__(self, variables : spk_variables.SpkVariables, name = "Test", password_text="Password", uuid = "", parent= "default"):
         
         super().__init__()
 
-        self.uuid= uuid_manager.uuid4() if uuid == "" else uuid        
+        self.uuid= uuid_manager.uuid4() if uuid == "" else uuid 
+        while self.uuid in variables.uuids:
+            variables.global_logs.add(f"Cannot create the password \"{name}\". The uuid already exists","error")  
+            self.uuid= uuid_manager.uuid4() 
+        variables.uuids.append(self.uuid)
+            
         self.logger = logs.Logger(display=True,write_in_file=False,name="Password ("+str(uuid)+")")
         self.var = variables
 
@@ -38,7 +48,7 @@ class Password(QWidget):
         self.isEdited = False
         self.isShown = False
         self.config_height = int(self.var.theme.get("password_size").get("password_size"))
-
+        self.parent_folder = parent # only to go up
                   
         
         #PASSWORD NAME
@@ -78,7 +88,7 @@ class Password(QWidget):
         #"SUPR BUTTON"        
         self.supr_button.setStyleSheet("QPushButton {"+self.var.theme.get("supr_button").to_config()+"} QPushButton:hover {"+self.var.theme.get("supr_button_hover").to_config()+"}")
         self.supr_button.setDefault(True)
-        self.supr_button.clicked.connect(lambda : self.var.manager.deletePassword(self.uuid))
+        self.supr_button.clicked.connect(lambda : self.var.manager.deleteItem(self.uuid))
                 
 
         # BUILDING LAYOUT
@@ -100,6 +110,8 @@ class Password(QWidget):
         self.setStyleSheet(self.var.theme.get("password_background").to_config())  
         self.setMaximumHeight(self.config_height)        
         self.var.password_list.append(self)
+
+        
 
     def onEchoChange(self):         
         if self.isShown == False :         
@@ -140,7 +152,7 @@ class Password(QWidget):
                 self.untoggleEditing()
                 self.var.current_field_edited = None
 
-    def onPasswordNameChange(self):
+    def onPasswordNameChange(self):        
         self.var.resetMousePos()
         self.var.indicator.set("Not saved","blue")
 
@@ -200,4 +212,19 @@ class Password(QWidget):
         elif len(pw)> 0 : is_in_pw = pw[0][1]> threshold        
         return is_in_name or is_in_pw
     
+    def to_save_string(self): # create a string which will be used to save the password info (see spk_manager.save)
+        chr1,chr2,_,_ = self.var.character
+        name : str = self.password_name.text()
+        pw=self.getText()
+        uuid = self.uuid
 
+        
+        if contains(name,self.var.character) or contains(pw,self.var.character): # avoid corruption
+            self.wrong_character_popup()
+            self.logger.add(f"The password named {name} wasn't saved due to an unauthorised character",self.logger.critical_error)
+            return ""
+        else:
+            return chr1+name+ chr1+str(uuid) +chr1+pw
+#save file 
+#password : chr1, name , chr1, uuid, chr1 , password
+#folder : chr2, name , chr2, uuid , chr2 , children

@@ -1,21 +1,19 @@
 from PySide6.QtWidgets import QApplication, QStyleFactory
 from PySide6.QtGui import QFont
 
-
-
 import sys
 import spk_manager
 import spk_variables
 
 if __name__ == "__main__":
+    app = QApplication()  
 
-    vars = spk_variables.SpkVariables(current_field_edited=None,current_shown_fields=[])
-    vars.loadConfig("spk_settings.json")
-    vars.loadTheme("spk.conf")  
+    vars = spk_variables.SpkVariables(current_field_edited=None,current_shown_fields=[],config="spk_settings.json",theme="spk.conf")
+    
     font = QFont(vars.theme.get("font").get("font"))    
     font.setPixelSize(int(vars.theme.get("font").get("size")))
     
-    app = QApplication()  
+    
     app.setFont(font)
     spk_app = spk_manager.SimplePasswordKeeper(dir="",var=vars) 
     vars.manager = spk_app
@@ -24,8 +22,10 @@ if __name__ == "__main__":
     
     spk_app.show()
     sys.exit(app.exec())
-   
 
+
+   
+    
 
 
 

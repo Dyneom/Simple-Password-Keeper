@@ -2,24 +2,34 @@
 from PySide6.QtGui import QCursor
 
 import spk_password
+import spk_folder
 from logs import Logger
 import spk_theme
 import json
 import os
 
 class SpkVariables():
-    def __init__(self,indicator = None,settings = None,theme = None,last_mouse_pos : tuple= None,current_field_edited : spk_password.Password = None,current_shown_fields : list[spk_password.Password] = None,editing :bool = None):
+    def __init__(self,indicator = None,settings = None,theme="",config="",last_mouse_pos : tuple= None,current_field_edited : spk_password.Password = None,current_shown_fields : list[spk_password.Password] = None,editing :bool = None):
         self.indicator = indicator
         self.settings = settings
-        self.theme: spk_theme.SpkTheme | None = theme  
+        self.theme: spk_theme.SpkTheme | str = theme  
+        self.config: spk_theme.SpkTheme | str = config 
+        self.loadConfig(config)
+        self.loadTheme(theme) 
         self.global_logs = Logger(display=True,write_in_file=False,name = "global")
         self.last_mouse_pos = last_mouse_pos
         self.current_field_edited = current_field_edited
         self.current_shown_fields = current_shown_fields
         self.editing = editing
         self.manager = None
+        self.uuids = []
         self.minimum_password_field_height = 30
         self.password_list = []
+        #self.character = [chr(7000),chr(7001),chr(7002),chr(7003)]
+        self.character = ["𝟙","𝟚","𝟛","𝟜"]
+        self.root =  spk_folder.Folder(self,name="Root",children=[],parent=None)
+        self.current_node : spk_folder.Folder = self.root # same
+        
 
     def loadConfig(self,path: str):     
 
