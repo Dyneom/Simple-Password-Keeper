@@ -12,10 +12,10 @@ from PySide6.QtCore import Qt
 from rapidfuzz import process, fuzz
 
 
-
 #spk
 import logs
 import spk_variables
+import spk_folder
 
 
 def contains(string:str, l: list[str]) -> bool:
@@ -25,12 +25,12 @@ def contains(string:str, l: list[str]) -> bool:
 
 
 class Password(QWidget): 
-    def __init__(self, variables : spk_variables.SpkVariables, name = "Test", password_text="Password", uuid = "", parent= "default"):
+    def __init__(self, variables : spk_variables.SpkVariables,parent, name = "Test", password_text="Password", uuid = "",bypass_uuid_check=False,**kwargs):
         
         super().__init__()
 
         self.uuid= uuid_manager.uuid4() if uuid == "" else uuid 
-        while self.uuid in variables.uuids:
+        while not bypass_uuid_check and self.uuid in variables.uuids:
             variables.global_logs.add(f"Cannot create the password \"{name}\". The uuid already exists","error")  
             self.uuid= uuid_manager.uuid4() 
         variables.uuids.append(self.uuid)
@@ -48,8 +48,9 @@ class Password(QWidget):
         self.isEdited = False
         self.isShown = False
         self.config_height = int(self.var.theme.get("password_size").get("password_size"))
-        self.parent_folder = parent # only to go up
-                  
+        if kwargs.get("bypassParent") != True:
+            self.parent_folder = parent if isinstance(parent,spk_folder.Folder) else variables.root       
+            self.parent_folder.addChild(self)
         
         #PASSWORD NAME
         self.password_name.setStyleSheet(variables.theme.get("password_name").to_config())
@@ -165,6 +166,8 @@ class Password(QWidget):
         else:
             self.password_field.setStyleSheet(self.var.theme.get("password").to_config())
 
+    
+
     def resize(self,target_height = -1,no_flick = False):
         if target_height == -1 :  target_height = max(self.password_field.document().size().height()+self.password_field.contentsMargins().top()+self.password_field.contentsMargins().bottom(),self.var.minimum_password_field_height )  
         if target_height >= 0 and target_height != self.password_field.height(): 
@@ -212,6 +215,27 @@ class Password(QWidget):
         elif len(pw)> 0 : is_in_pw = pw[0][1]> threshold        
         return is_in_name or is_in_pw
     
+    def appear_selected(self):
+        self.setStyleSheet(self.var.theme.get("password_background_selected").to_config()) 
+
+    def appear_normal(self):
+        self.setStyleSheet(self.var.theme.get("password_background").to_config()) 
+
+    def mouseReleaseEvent(self, event):
+        self.var.selection.add(self)
+
+        return super().mouseReleaseEvent(event)
+
+    def copy(self,parent,memo,bypassParent):
+        if memo.get(id(self)) != None:
+            print("Anti-copy working (pw)")            
+            return memo[id(self)]
+        
+        if parent == None  :
+            parent = self.var.root
+        f = Password(self.var,parent=parent,name=self.password_name.text(),password_text=self.getText(),uuid = self.uuid,bypass_uuid_check=True,bypassParent=bypassParent)
+        return f
+
     def to_save_string(self): # create a string which will be used to save the password info (see spk_manager.save)
         chr1,chr2,_,_ = self.var.character
         name : str = self.password_name.text()

@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from rapidfuzz import process, fuzz
 
-from copy import deepcopy
+
 
 #spk
 import logs
@@ -20,13 +20,13 @@ import spk_variables
 
 
 class Folder(QWidget): 
-    def __init__(self, variables : spk_variables.SpkVariables, name = "New folder", children: list =[], uuid = "",parent = ""):
+    def __init__(self, variables : spk_variables.SpkVariables, parent, name = "New folder", children: list =[], uuid = "",bypass_uuid_check=False,**kwargs):
         
         super().__init__()
         
         self.uuid= uuid_manager.uuid4() if uuid == "" else uuid      
 
-        while self.uuid in variables.uuids:
+        while not bypass_uuid_check and self.uuid in variables.uuids:
             variables.global_logs.add(f"Cannot create the folder \"{name}\". The uuid already exists","error")  
             self.uuid= uuid_manager.uuid4() 
         variables.uuids.append(self.uuid)
@@ -35,6 +35,13 @@ class Folder(QWidget):
         self.logger = logs.Logger(display=True,write_in_file=False,name="Folder ("+str(uuid)+")")
         self.var = variables
         self.parent_folder : Folder = parent
+        if kwargs.get("isRoot"):
+            self.parent_folder = self
+        elif kwargs.get("bypassParent") == True:
+            pass
+        else:
+            self.parent_folder = parent if isinstance(parent,Folder) else variables.root # only to go up
+            self.parent_folder.addChild(self)
         
         self.main_layout   = QHBoxLayout()                     
         self.folder_name = QLineEdit(name)                
@@ -72,7 +79,24 @@ class Folder(QWidget):
         
 
     
-    
+    def copy(self,parent,memo,bypassParent):  #parent is the copy of the parent  
+        if memo.get(id(self)) != None:
+            print("Anti-copy working")
+            return memo[id(self)]
+        f = Folder(self.var,parent=parent,name=self.getName(),children=l,uuid = self.uuid,bypass_uuid_check=True,bypassParent=bypassParent)
+
+        if parent == None:
+            parent = self.var.root
+
+        l = []        
+        for el in self.children_list:
+            p=el.copy(parent=f)
+            l.append(p) 
+
+        memo[id(self)] = f
+
+        return f
+
 
     def onFolderNameChange(self):
         self.var.resetMousePos()
@@ -122,10 +146,13 @@ class Folder(QWidget):
         elif not silent : self.logger.add("You are trying to remove a child which doesn't exist!", self.logger.warning)
 
 
-    def getChildren(self, copy = True):
-        #if copy : 
-            #return deepcopy(self.children_list) #doesn't work
-            #pass
+    def getChildren(self, copy = True):        
+        memo = {}
+        if copy : 
+            y=[]
+            for el in self.children_list:
+                y.append(el.copy(self,memo,True))              
+
         return self.children_list
     
     def setChildren(self, l, copy = True):
@@ -135,6 +162,17 @@ class Folder(QWidget):
         #else :
         self.children_list = l 
         
+    def appear_normal(self):
+        self.setStyleSheet(self.var.theme.get("password_background").to_config()) 
+
+    def appear_selected(self):
+        self.setStyleSheet(self.var.theme.get("password_background_selected").to_config()) 
+
+    def mouseReleaseEvent(self, event):
+        self.var.selection.add(self)        
+        return super().mouseReleaseEvent(event)    
+
+
 
     def mouseDoubleClickEvent(self,event): #enter the folder
         self.var.current_node = self

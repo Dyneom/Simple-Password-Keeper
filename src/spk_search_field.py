@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox,
                             QWidget, QScrollArea, QToolBar,
                             QMainWindow, QLineEdit, QSpacerItem,
                             QPushButton, QMessageBox, QWidgetItem, QInputDialog, QLabel, QSizePolicy,
-                            QTextEdit                                 
+                            QTextEdit                                
                             )
 
 from PySide6.QtCore import QSize
@@ -40,7 +40,7 @@ class SearchField(QWidget):
 
         self.setLayout(self.layout) 
 
-        self.search.textChanged.connect(lambda : self.var.manager.search(self.search.text()))
+        self.search.textChanged.connect(lambda : self.var.manager.search(self.search.text()))        
 
 
     def clear(self):

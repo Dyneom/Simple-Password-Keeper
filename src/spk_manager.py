@@ -14,8 +14,8 @@ from PySide6.QtWidgets import (
 
 from PySide6.QtCore import QTimer, Qt
 
-
-
+import qtawesome
+import time as func_timer
 import uuid as uuid_manager
 import argon2
 import base64
@@ -29,6 +29,7 @@ import spk_password
 import spk_variables
 import spk_search_field
 import spk_folder
+import spk_selection
 
 def contains(string:str, l: list[str]) -> bool:
     for i in l:
@@ -103,7 +104,7 @@ def save_to_layout(s:str,vars: spk_variables.SpkVariables): # input is the decry
             else:
                 pw = ""
 
-            stack[-1].addChild(spk_password.Password(vars,name,pw,uuid,parent=stack[-1]))            
+            spk_password.Password(vars,parent=stack[-1],name=name,password_text=pw,uuid=uuid)           
         elif chr == chr2: # folder
             s = s[i+1:] 
 
@@ -116,8 +117,8 @@ def save_to_layout(s:str,vars: spk_variables.SpkVariables): # input is the decry
             uuid_end = get_next(s,chr)          
             uuid = s[:uuid_end]
             s = s[uuid_end+1:]
-            f = spk_folder.Folder(variables=vars,name=name,children=[],uuid=uuid,parent=stack[-1])
-            stack[-1].addChild(f)            
+            f = spk_folder.Folder(variables=vars,parent=stack[-1],name=name,children=[],uuid=uuid)
+                      
             stack.append(f)
             
         elif chr == chr3: #end of a folder
@@ -250,6 +251,10 @@ class SimplePasswordKeeper(QMainWindow):
     
     def init_passwords(self):
 
+        #SELECTION
+
+        spk_selection.Selection(self.var)
+
         #VARIABLES 
         self.editing=False
         self.current_shown_fields = []
@@ -271,22 +276,34 @@ class SimplePasswordKeeper(QMainWindow):
         self.addToolBar(toolbar)
         
 
-        button_quit = QAction("Quit", self)        
+        button_quit = QAction("Quit", self) 
+        button_quit.setIcon(qtawesome.icon("fa6s.ellipsis-vertical",color="white"))       
         button_quit.triggered.connect(self.close)
         toolbar.addAction(button_quit) 
 
-        button_save = QAction("Save", self)        
+        button_save = QAction("Save", self)   
+        button_save.setIcon(qtawesome.icon("fa6s.floppy-disk",color="white"))  
         button_save.triggered.connect(self.save)
         toolbar.addAction(button_save) 
       
         
-        button_new_p = QAction("New password field", self)        
+        button_new_p = QAction("New password field", self)    
+        button_new_p.setIcon(qtawesome.icon("fa6s.key",color="white"))     
         button_new_p.triggered.connect(self.newPassword)
         toolbar.addAction(button_new_p) 
 
-        button_new_f = QAction("New Folder", self)        
+        button_new_f = QAction("New Folder", self)  
+        button_new_f.setIcon(qtawesome.icon("fa6s.folder-plus",color="white"))  
         button_new_f.triggered.connect(self.newFolder)
         toolbar.addAction(button_new_f) 
+
+        go_parent_button = QAction("Go to parent folder", self)  
+        go_parent_button.setIcon(qtawesome.icon("fa6s.arrow-up",color="white"))  
+        go_parent_button.triggered.connect(self.go_parent)
+        toolbar.addAction(go_parent_button)
+
+
+        
          
         
          
@@ -312,10 +329,15 @@ class SimplePasswordKeeper(QMainWindow):
         new_folder_shortcut.activated.connect(self.newFolder)
 
         quit_shortcut = QShortcut(QKeySequence("Ctrl+Q"), self)
-        quit_shortcut.activated.connect(self.close)        
+        quit_shortcut.activated.connect(self.close)
 
-        debug_shortcut = QShortcut(QKeySequence("Ctrl+O"), self)
-        debug_shortcut.activated.connect(self.go_parent)
+        select_all_shortcut = QShortcut(QKeySequence("Ctrl+A"), self)
+        select_all_shortcut.activated.connect(self.var.selection.selectAll)   
+
+        delete_shortcut = QShortcut(QKeySequence("Ctrl+O"), self)
+        delete_shortcut.activated.connect(self.var.selection.delete_selection)
+
+        
 
         #TIMERS
         self.timer = QTimer(self)
@@ -328,12 +350,15 @@ class SimplePasswordKeeper(QMainWindow):
         self.timer2.timeout.connect(self.getMousePos)
         self.timer2.start(1000)
 
+        
+
         #END -> loadPassword
         self.main_layout = main_layout 
         self.main_layout.addWidget(spk_search_field.SearchField(self.var),0,1)
         self.loadPasswords()          
        
     def save(self,isbackup : bool = False): # TODO : a popup when saving password : keep the same or change
+        t = func_timer.time()
         chr1,chr2,chr3,chr4 = self.var.character        
         c=self.scroll_layout.count()
         passwords= []        
@@ -353,55 +378,22 @@ class SimplePasswordKeeper(QMainWindow):
             string+=chr3
             return string
         
-
-        for w in self.var.root.getChildren():  
-                                                     
+        
+        for w in self.var.root.getChildren(copy=False):                                                  
 
                 if isinstance(w,spk_password.Password) :     
                     csv_to_encrypt += w.to_save_string()
                 
                 elif isinstance(w,spk_folder.Folder):
                     csv_to_encrypt+=create_folder_string(folder=w,string="")
-                #     prof = 1  
-                #     print("Found folder")                  
-                #     layers = [(w,prof)] # stack
-                #     while len(layers) != 0:
-                #         print("Profondeur :",prof, "layers: ",layers)
-                #         f,current_prof = layers.pop()
-                #         name = f.getName()
-                #         uuid = f.uuid
-                #         csv_to_encrypt += chr2+name+chr2+str(uuid)+chr2
-                #         children = f.getChildren()
-                #         if current_prof>prof:
-                #             print("Error on prof",current_prof,prof)
-                #         elif current_prof == prof :
-                #             print("OK prof")
-                #         else:
-                #             prof -= 1
-                #             csv_to_encrypt+=chr3
-
-                #         if len(children) == 0 : 
-                #             csv_to_encrypt+=chr3
-                #             prof -= 1 
-                #         else:
-                #             for i in children:
-                #                 if isinstance(i,spk_password.Password) :     
-                #                     csv_to_encrypt += i.to_save_string()
-                #                 elif isinstance(i,spk_folder.Folder):  
-                #                     prof += 1                              
-                #                     layers.append((i,prof)) 
-                                                                   
-
                     
-                
-                    
-                  
-        
+                                                                      
         self.file_manager.set_content(csv_to_encrypt) 
         self.file_manager.encrypt_content(is_backup= isbackup)
         self.file_manager.save(is_backup= isbackup)        
         if not isbackup : self.indicator.set("Saved","green") 
         else : self.indicator.temp_message("Backed up",('green', 200),1)
+        self.logger.add(f"Saved in {func_timer.time()-t}s")
 
 #save file 
 #password : chr1, name , chr1, uuid, chr1 , password
@@ -411,17 +403,7 @@ class SimplePasswordKeeper(QMainWindow):
            
     def newPassword(self):
         
-        new_pass_lay=spk_password.Password(self.var,name = "New Password",password_text = "",parent=self.var.current_node)
-        
-        # try:
-        #     stretch = self.scroll_layout.takeAt(self.scroll_layout.count() -1 )                   
-        #     if isinstance(stretch,QSpacerItem) :             
-        #         del stretch   
-        # except AttributeError:
-        #     self.logger.add("Failed to remove stretch (if the main layout wasn't empty this is a bug)",self.logger.warning)      
-        
-        # self.scroll_layout.addWidget(new_pass_lay) # addWidget
-        # self.scroll_layout.addStretch()
+        new_pass_lay=spk_password.Password(self.var,name = "New Password",password_text = "",parent=self.var.current_node)       
         self.var.current_node.getChildren(copy=False).insert(0,new_pass_lay)
         self.scroll_layout.insertWidget(0,new_pass_lay)        
         self.logger.add("Created new password",self.logger.success)
@@ -429,23 +411,24 @@ class SimplePasswordKeeper(QMainWindow):
         self.indicator.temp_message("Created password","gold",1)
     
     def newFolder(self):        
-        new_folder_lay=spk_folder.Folder(self.var,children=[],name = "New Folder",parent=self.var.current_node)       
+        new_folder_lay=spk_folder.Folder(self.var,parent=self.var.current_node,children=[],name = "New Folder")       
         self.var.current_node.getChildren(copy=False).insert(0,new_folder_lay)       
         self.scroll_layout.insertWidget(0,new_folder_lay)
         self.logger.add("Created new folder",self.logger.success)
         self.indicator.set("Not saved","blue")
         self.indicator.temp_message("Created folder","gold",1)
 
-    def deleteItem(self,passw_uuid : uuid_manager.UUID):
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Question)
-        msg.setWindowTitle("Confirmation")
-        msg.setText("Are you sure you want to delete this item?")
-        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-   
-        response = msg.exec()
-        response = response==QMessageBox.Yes # /!\ Change of type
-        if not response : return 
+    def deleteItem(self,passw_uuid : uuid_manager.UUID,no_pop_up=False,from_selection = False):
+        if not no_pop_up:    
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Question)
+            msg.setWindowTitle("Confirmation")
+            msg.setText("Are you sure you want to delete this item?")
+            msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+    
+            response = msg.exec() 
+            response = response==QMessageBox.Yes # /!\ Change of type
+            if not response : return 
 
         #DELETING PART      
         
@@ -460,8 +443,9 @@ class SimplePasswordKeeper(QMainWindow):
                     self.logger.add(f"Deleting password in position {i} (uuid: {tmp_uuid})") 
                     a=self.scroll_layout.itemAt(i)
                     if isinstance(a.widget(),spk_password.Password) :                         
-                        bl = a.widget().untoggleEditing()
-                        a.widget().parent_folder.getChildren().remove(a.widget())
+                        bl = a.widget().untoggleEditing()  
+                        print(a.widget().parent_folder)                      
+                        a.widget().parent_folder.getChildren().remove(a.widget()) #parent folder create an error
                         if bl : #if the password was edited
                             self.var.current_field_edited = None
                         if a.widget() in self.var.current_shown_fields :
@@ -472,6 +456,7 @@ class SimplePasswordKeeper(QMainWindow):
                     if a.widget() in self.var.password_list:
                         self.var.password_list.remove(a.widget())
                         
+                    if not from_selection : self.var.selection.remove(a.widget())
                        
 
                        
@@ -494,7 +479,7 @@ class SimplePasswordKeeper(QMainWindow):
     def createArea(self): 
         widget=QWidget()
         item_layout=QVBoxLayout(widget) 
-        for el in self.var.current_node.getChildren():
+        for el in self.var.current_node.getChildren(copy=False):
             item_layout.addWidget(el)
 
         scroll = QScrollArea()
@@ -516,6 +501,7 @@ class SimplePasswordKeeper(QMainWindow):
         
         
         self.logger.add("Created scroll area",self.logger.success)  
+        self.var.selection.reset() 
         return scroll
         
     def close(self):
@@ -544,7 +530,7 @@ class SimplePasswordKeeper(QMainWindow):
             pw.resize()
 
     def search(self, word :str):
-        for pw in self.var.password_list:
+        for pw in self.var.current_node.getChildren(copy=False):
             found: bool = pw.find(word)
             if found :                 
                 pw.show()

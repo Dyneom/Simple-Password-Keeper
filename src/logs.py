@@ -95,22 +95,22 @@ class Logger():
 
             match rank:
                 case "information" : 
-                    return " "
+                    return "[INFO]"
                 
                 case "warning" :
-                    return "Warning : "
+                    return "[WARN] "
                 
                 case "error" : 
-                    return "Error : "
+                    return "Error: "
                 
                 case "critical error" : 
-                    return "CRITICAL ERROR : "
+                    return "CRITICAL ERROR: "
                 
                 case "shutdown error" :
-                    return "SHUTDOWN ERROR : "
+                    return "SHUTDOWN ERROR: "
                 
                 case "success" : 
-                    return "Success : "
+                    return "Success: "
                 
             return "NON-EXISTANT RANK  : "
         

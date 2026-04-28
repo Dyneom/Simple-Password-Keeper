@@ -27,8 +27,9 @@ class SpkVariables():
         self.password_list = []
         #self.character = [chr(7000),chr(7001),chr(7002),chr(7003)]
         self.character = ["𝟙","𝟚","𝟛","𝟜"]
-        self.root =  spk_folder.Folder(self,name="Root",children=[],parent=None)
+        self.root =  spk_folder.Folder(self,name="Root",children=[],parent=None,isRoot=True)
         self.current_node : spk_folder.Folder = self.root # same
+        self.selection = None
         
 
     def loadConfig(self,path: str):     
