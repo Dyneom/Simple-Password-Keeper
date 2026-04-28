@@ -106,11 +106,11 @@ class Password(QWidget):
              
         
         self.setLayout(self.main_password_layout)        
-        #self.var.password_list = []
+        
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.setStyleSheet(self.var.theme.get("password_background").to_config())  
         self.setMaximumHeight(self.config_height)        
-        self.var.password_list.append(self)
+        
 
         
 
@@ -235,6 +235,21 @@ class Password(QWidget):
             parent = self.var.root
         f = Password(self.var,parent=parent,name=self.password_name.text(),password_text=self.getText(),uuid = self.uuid,bypass_uuid_check=True,bypassParent=bypassParent)
         return f
+
+    def delete(self):
+        if self in self.parent_folder.children_list:
+            self.parent_folder.children_list.remove(self)
+        bl = self.untoggleEditing()
+        if bl : #password edited
+            self.var.current_field_edited = None
+        if self in self.var.current_shown_fields:
+            self.var.current_shown_fields.remove(self)
+        self.var.selection.remove(self)
+        
+        
+
+        
+
 
     def to_save_string(self): # create a string which will be used to save the password info (see spk_manager.save)
         chr1,chr2,_,_ = self.var.character

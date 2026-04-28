@@ -40,8 +40,10 @@ class Selection():
 
 
     def remove(self,element): #silent
-        #while element in self.selected: #while should do the same as an if
-        #    self.selected.remove(element) 
+        c = 100
+        while element in self.selected and c > 0: #while should do the same as an if
+            self.selected.remove(element) 
+            c = c - 1
         pass
 
     def delete_selection(self) :    #will delete the item with the deleteItem function (see manager)

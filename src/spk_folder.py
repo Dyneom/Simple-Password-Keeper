@@ -27,7 +27,7 @@ class Folder(QWidget):
         self.uuid= uuid_manager.uuid4() if uuid == "" else uuid      
 
         while not bypass_uuid_check and self.uuid in variables.uuids:
-            variables.global_logs.add(f"Cannot create the folder \"{name}\". The uuid already exists","error")  
+            variables.global_logs.add(f"Cannot create the folder \"{name}\". The uuid already exists. It is a bug","error")  
             self.uuid= uuid_manager.uuid4() 
         variables.uuids.append(self.uuid)
 
@@ -83,12 +83,14 @@ class Folder(QWidget):
         if memo.get(id(self)) != None:
             print("Anti-copy working")
             return memo[id(self)]
+        
+        l = []   
         f = Folder(self.var,parent=parent,name=self.getName(),children=l,uuid = self.uuid,bypass_uuid_check=True,bypassParent=bypassParent)
 
         if parent == None:
             parent = self.var.root
 
-        l = []        
+             
         for el in self.children_list:
             p=el.copy(parent=f)
             l.append(p) 
@@ -156,10 +158,11 @@ class Folder(QWidget):
         return self.children_list
     
     def setChildren(self, l, copy = True):
-        #if copy : 
-            #self.children_list = deepcopy(l) #doesn't work
-            #pass 
-        #else :
+        if copy == True:
+            l2 = []
+            for el in l:
+                l2.append(el.copy())
+
         self.children_list = l 
         
     def appear_normal(self):
@@ -172,7 +175,14 @@ class Folder(QWidget):
         self.var.selection.add(self)        
         return super().mouseReleaseEvent(event)    
 
+    def delete(self):
+        if self in self.parent_folder.children_list : 
+            self.parent_folder.children_list.remove(self)
+        for el in self.children_list:
+            el.delete()        
+        self.var.selection.remove(self)
 
+    
 
     def mouseDoubleClickEvent(self,event): #enter the folder
         self.var.current_node = self

@@ -367,24 +367,27 @@ class SimplePasswordKeeper(QMainWindow):
 
 
         def create_folder_string(folder,string) -> str:
-            name = folder.getName()
-            uuid = folder.uuid
-            string += chr2+name+chr2+str(uuid)+chr2            
-            for el in folder.getChildren(copy=False):
-                if isinstance(el,spk_folder.Folder) : 
-                    string=create_folder_string(el,string)                    
-                elif isinstance(el,spk_password.Password):
-                    string+=el.to_save_string()
-            string+=chr3
+            try:
+                name = folder.getName()
+                uuid = folder.uuid
+                string += chr2+name+chr2+str(uuid)+chr2            
+                for el in folder.getChildren(copy=False):
+                    if isinstance(el,spk_folder.Folder) : 
+                        string=create_folder_string(el,string)                    
+                    elif isinstance(el,spk_password.Password):
+                        string+=el.to_save_string()
+                string+=chr3
+            except Exception as e:
+                self.logger.add("Failed to save a folder",e)
             return string
         
         
         for w in self.var.root.getChildren(copy=False):                                                  
 
-                if isinstance(w,spk_password.Password) :     
+                if isinstance(w,spk_password.Password):     
                     csv_to_encrypt += w.to_save_string()
                 
-                elif isinstance(w,spk_folder.Folder):
+                elif isinstance(w,spk_folder.Folder):                    
                     csv_to_encrypt+=create_folder_string(folder=w,string="")
                     
                                                                       
@@ -403,22 +406,21 @@ class SimplePasswordKeeper(QMainWindow):
            
     def newPassword(self):
         
-        new_pass_lay=spk_password.Password(self.var,name = "New Password",password_text = "",parent=self.var.current_node)       
-        self.var.current_node.getChildren(copy=False).insert(0,new_pass_lay)
+        new_pass_lay=spk_password.Password(self.var,name = "New Password",password_text = "",parent=self.var.current_node)          
         self.scroll_layout.insertWidget(0,new_pass_lay)        
         self.logger.add("Created new password",self.logger.success)
         self.indicator.set("Not saved","blue")
         self.indicator.temp_message("Created password","gold",1)
     
     def newFolder(self):        
-        new_folder_lay=spk_folder.Folder(self.var,parent=self.var.current_node,children=[],name = "New Folder")       
-        self.var.current_node.getChildren(copy=False).insert(0,new_folder_lay)       
+        new_folder_lay=spk_folder.Folder(self.var,parent=self.var.current_node,children=[],name = "New Folder")              
         self.scroll_layout.insertWidget(0,new_folder_lay)
         self.logger.add("Created new folder",self.logger.success)
         self.indicator.set("Not saved","blue")
         self.indicator.temp_message("Created folder","gold",1)
 
     def deleteItem(self,passw_uuid : uuid_manager.UUID,no_pop_up=False,from_selection = False):
+        #POP-UP
         if not no_pop_up:    
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Question)
@@ -430,9 +432,8 @@ class SimplePasswordKeeper(QMainWindow):
             response = response==QMessageBox.Yes # /!\ Change of type
             if not response : return 
 
-        #DELETING PART      
+        #DELETING PART         
         
-        #el_list=[self.scroll_layout.itemAt(i).widget().password_name.text() for i in range(self.scroll_layout.count()-1)]
         if isinstance(self.scroll_layout.itemAt(self.scroll_layout.count() -1),QSpacerItem):            
             self.scroll_layout.removeItem(self.scroll_layout.itemAt(self.scroll_layout.count() -1))
 
@@ -443,27 +444,13 @@ class SimplePasswordKeeper(QMainWindow):
                     self.logger.add(f"Deleting password in position {i} (uuid: {tmp_uuid})") 
                     a=self.scroll_layout.itemAt(i)
                     if isinstance(a.widget(),spk_password.Password) :                         
-                        bl = a.widget().untoggleEditing()  
-                        print(a.widget().parent_folder)                      
-                        a.widget().parent_folder.getChildren().remove(a.widget()) #parent folder create an error
-                        if bl : #if the password was edited
-                            self.var.current_field_edited = None
-                        if a.widget() in self.var.current_shown_fields :
-                            self.var.current_shown_fields.remove(a)
+                        a.widget().delete()
                     elif isinstance(a.widget(),spk_folder.Folder):
-                        a.widget().parent_folder.getChildren().remove(a.widget())
+                        a.widget().delete()
                         pass
-                    if a.widget() in self.var.password_list:
-                        self.var.password_list.remove(a.widget())
-                        
-                    if not from_selection : self.var.selection.remove(a.widget())
-                       
-
-                       
+                    
                     a.widget().deleteLater() # shadow boxes if this line is changed
                     self.scroll_layout.removeItem(a) 
-                    
-                    
                     
                                  
                     self.logger.add(f"Successfully deleted the item ({tmp_uuid})",self.logger.success) 

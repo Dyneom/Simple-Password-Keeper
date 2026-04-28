@@ -23,8 +23,7 @@ class SpkVariables():
         self.editing = editing
         self.manager = None
         self.uuids = []
-        self.minimum_password_field_height = 30
-        self.password_list = []
+        self.minimum_password_field_height = 30        
         #self.character = [chr(7000),chr(7001),chr(7002),chr(7003)]
         self.character = ["𝟙","𝟚","𝟛","𝟜"]
         self.root =  spk_folder.Folder(self,name="Root",children=[],parent=None,isRoot=True)

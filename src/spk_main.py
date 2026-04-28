@@ -1,3 +1,5 @@
+#this file is to run the project directly with python, to use the command line interface see the main.py folder
+
 from PySide6.QtWidgets import QApplication, QStyleFactory
 from PySide6.QtGui import QFont
 
