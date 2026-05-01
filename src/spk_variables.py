@@ -17,8 +17,7 @@ class SpkVariables():
         self.loadConfig(config)
         self.loadTheme(theme) 
         self.global_logs = Logger(display=True,write_in_file=False,name = "global")
-        self.last_mouse_pos = last_mouse_pos
-        self.current_field_edited = current_field_edited
+        self.last_mouse_pos = last_mouse_pos        
         self.current_shown_fields = current_shown_fields
         self.editing = editing
         self.manager = None

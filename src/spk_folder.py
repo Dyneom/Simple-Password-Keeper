@@ -16,6 +16,7 @@ from rapidfuzz import process, fuzz
 #spk
 import logs
 import spk_variables
+import spk_password
 
 
 
@@ -43,9 +44,12 @@ class Folder(QWidget):
             self.parent_folder = parent if isinstance(parent,Folder) else variables.root # only to go up
             self.parent_folder.addChild(self)
         
-        self.main_layout   = QHBoxLayout()                     
-        self.folder_name = QLineEdit(name)                
-        self.supr_button = QPushButton("Del")          
+        self.main_layout   = QHBoxLayout()  
+        if  not kwargs.get("isRoot"):                 
+            self.folder_name = spk_password.PasswordName(name,lambda : self.var.selection.add(self))
+        else:
+            self.folder_name = QLineEdit(name)                
+                 
         self.isShown = True
         self.config_height = int(self.var.theme.get("password_size").get("password_size"))
 
@@ -55,17 +59,14 @@ class Folder(QWidget):
         self.folder_name.setStyleSheet(variables.theme.get("password_name").to_config())
         self.folder_name.textChanged.connect(self.onFolderNameChange)       
         
-        #"SUPR BUTTON"        
-        self.supr_button.setStyleSheet("QPushButton {"+self.var.theme.get("supr_button").to_config()+"} QPushButton:hover {"+self.var.theme.get("supr_button_hover").to_config()+"}")
-        self.supr_button.setDefault(True)
-        self.supr_button.clicked.connect(lambda : self.var.manager.deleteItem(self.uuid))
-                
+             
+             
 
         # BUILDING LAYOUT
         
         ## HORIZONTAL
         self.main_layout.addWidget(self.folder_name)         
-        self.main_layout.addWidget(self.supr_button) 
+         
 
        
              

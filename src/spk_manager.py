@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
                             QGridLayout, QVBoxLayout, QWidget, 
                             QScrollArea, QToolBar, QMainWindow, 
                             QLineEdit, QSpacerItem, QMessageBox, 
-                            QWidgetItem, QInputDialog,  QSizePolicy                                     
+                            QWidgetItem, QInputDialog,  QSizePolicy  , QToolButton, QMenu                                  
                             )
 
 from PySide6.QtCore import QTimer, Qt
@@ -127,11 +127,6 @@ def save_to_layout(s:str,vars: spk_variables.SpkVariables): # input is the decry
     
 
 
-            
-
-        
-
-
 class SimplePasswordKeeper(QMainWindow):
 
 
@@ -167,7 +162,7 @@ class SimplePasswordKeeper(QMainWindow):
                 pw_hmain= base64.urlsafe_b64encode(pbkdf2_hmac('sha256', bytes(pw,encoding='utf8'), salt, iter))
                 pw = "NO" 
                 self.file_manager.fernet = Fernet(pw_hmain)
-                self.init_passwords()
+                self.initApp()
                 return 
 
         hash = str(hash,encoding="utf8")
@@ -180,7 +175,7 @@ class SimplePasswordKeeper(QMainWindow):
             exit()
         
         if  result == 1 :
-            self.init_passwords()
+            self.initApp()
 
         self.logger.add(f"Init finished | Launching app (result : {result})",self.logger.success)
  
@@ -249,7 +244,7 @@ class SimplePasswordKeeper(QMainWindow):
         
         return result,pw
     
-    def init_passwords(self):
+    def initApp(self):
 
         #SELECTION
 
@@ -258,8 +253,8 @@ class SimplePasswordKeeper(QMainWindow):
         #VARIABLES 
         self.editing=False
         self.current_shown_fields = []
-        self.current_field_edited=None
-        self.current_field_button=None
+        
+        
         self.minimum_password_field_height = 30
 
         #WINDOW 
@@ -276,10 +271,20 @@ class SimplePasswordKeeper(QMainWindow):
         self.addToolBar(toolbar)
         
 
-        button_quit = QAction("Quit", self) 
-        button_quit.setIcon(qtawesome.icon("fa6s.ellipsis-vertical",color="white"))       
-        button_quit.triggered.connect(self.close)
-        toolbar.addAction(button_quit) 
+        menu = QMenu(self)
+        menu.addAction("Paramètres", lambda: print("Paramètres"))
+        menu.addAction("Aide", lambda: print("Aide"))        
+        menu.addAction("Quitter", self.close)
+
+        
+        btn = QToolButton(self)
+        btn.setText("⋮")          
+        btn.setMenu(menu)
+        btn.setPopupMode(QToolButton.InstantPopup)
+        btn.setIcon(qtawesome.icon("fa6s.ellipsis-vertical",color="white"))   
+
+        toolbar.addWidget(btn)
+        
 
         button_save = QAction("Save", self)   
         button_save.setIcon(qtawesome.icon("fa6s.floppy-disk",color="white"))  
@@ -288,7 +293,7 @@ class SimplePasswordKeeper(QMainWindow):
       
         
         button_new_p = QAction("New password field", self)    
-        button_new_p.setIcon(qtawesome.icon("fa6s.key",color="white"))     
+        button_new_p.setIcon(qtawesome.icon("fa6s.plus",color="white"))     
         button_new_p.triggered.connect(self.newPassword)
         toolbar.addAction(button_new_p) 
 
@@ -301,7 +306,6 @@ class SimplePasswordKeeper(QMainWindow):
         go_parent_button.setIcon(qtawesome.icon("fa6s.arrow-up",color="white"))  
         go_parent_button.triggered.connect(self.go_parent)
         toolbar.addAction(go_parent_button)
-
 
         
          
@@ -490,7 +494,8 @@ class SimplePasswordKeeper(QMainWindow):
         self.logger.add("Created scroll area",self.logger.success)  
         self.var.selection.reset() 
         return scroll
-        
+
+    #utils   
     def close(self):
         self.save()
         exit()
