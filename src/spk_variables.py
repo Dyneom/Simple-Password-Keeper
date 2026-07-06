@@ -29,6 +29,7 @@ class SpkVariables():
         self.current_node : spk_folder.Folder = self.root # same
         self.selection = None
         self.passwordToCopy = None
+        self.dragActive = False
         
 
     def loadConfig(self,path: str):     

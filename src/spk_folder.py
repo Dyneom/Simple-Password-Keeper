@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
                             QTextEdit  
                             )
 
-from PySide6.QtCore import Qt, QMimeData
+from PySide6.QtCore import Qt, QMimeData, QTimer
 from rapidfuzz import process, fuzz
 
 
@@ -170,7 +170,6 @@ class Folder(QWidget):
         if child in self.children_list : self.children_list.remove(child)
         elif not silent : self.logger.add("You are trying to remove a child which doesn't exist!", self.logger.warning)
 
-
     def getChildren(self, copy = True):        
         memo = {}
         if copy : 
@@ -223,10 +222,16 @@ class Folder(QWidget):
 
     
 
-    def mouseDoubleClickEvent(self,event): #enter the folder
-        self.var.current_node = self
-        self.var.manager.createArea()           
-        event.accept()
+    def mouseDoubleClickEvent(self,event): #enter the folder        
+        QTimer.singleShot(100, self.handleDoubleClick) # to prevent a bug when also dragging
+        
+
+    def handleDoubleClick(self):
+        if not self.var.dragActive:
+            self.var.current_node = self
+            self.var.manager.createArea()  
+                
+            
 
 
     def __bool__(self):
@@ -240,5 +245,14 @@ class Folder(QWidget):
             f = f.parent_folder
             path = f.getName() + "/" + path
         return path
+    
+
+    def moveChild(self,index,child):
+        if  child not in self.children_list:
+            self.logger.add("Unable to move a child that doesn't exist")
+            return
+        self.children_list.remove(child)
+        self.children_list.insert(index,child)
+
     
     

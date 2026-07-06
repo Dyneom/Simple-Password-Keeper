@@ -38,7 +38,7 @@ if __name__ == "__main__":
 # - import passwords
 # X export passwords (copy the file :) ) 
 # X make it able to run with argparse
-# - Sort / Minecraft world sort ?
+# X Sort / Minecraft world sort ?
 
 
 

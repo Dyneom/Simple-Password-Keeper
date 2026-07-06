@@ -33,6 +33,7 @@ import spk_variables
 import spk_search_field
 import spk_folder
 import spk_selection
+import spk_path
 
 def contains(string:str, l: list[str]) -> bool:
     for i in l:
@@ -144,19 +145,24 @@ class DragAndScroll(QWidget):
         self.current_folder_drop = None
 
     def dragEnterEvent(self, e):
+        self.var.dragActive = True
         e.accept()
         self.createYlist()
         
 
-    def dropEvent(self, e):
         
+        
+
+    def dropEvent(self, e):        
         pos = e.pos()
         widget = e.source()
 
      
 
         #handle the drop
-        if self.target_y and self.target_y_item != widget:
+        self.layout().update()
+        if self.target_y and self.target_y_item != widget and self.var.current_node != widget: #the last expr is to prevent a bug with double-clicking and dragging a the same time (second click) 
+            
             #remove the initial item from the list, insert it at the right place
             #finding the index of self.target_y_item in layout
             after_widget = False
@@ -174,7 +180,9 @@ class DragAndScroll(QWidget):
                 index = self.lay.count() - 2
 
             self.lay.removeWidget(widget)
+            self.layout().update()
             self.lay.insertWidget(index,widget)
+            self.layout().update()
 
             after_widget = False
             for i,item in enumerate(self.var.current_node.getChildren(copy=False)):                
@@ -189,15 +197,17 @@ class DragAndScroll(QWidget):
             else:
                 index = -1
 
-            self.var.current_node.children_list.remove(widget)
-            self.var.current_node.children_list.insert(index,widget)
+            
+            self.var.current_node.moveChild(index,widget)  
+            
         
-        elif self.current_folder_drop and self.current_folder_drop != widget:
-            self.lay.removeWidget(widget)
+        elif self.current_folder_drop and self.current_folder_drop != widget and self.current_folder_drop != self.var.current_node:
+            self.lay.removeWidget(widget)                        
             widget.setParent(self.current_folder_drop)   
+            
             if isinstance(widget,spk_folder.Folder):
                 widget.parent_folder = self.current_folder_drop         
-            self.var.current_node.children_list.remove(widget)
+            self.var.current_node.deleteChild(widget,silent= False)            
             self.current_folder_drop.addChild(widget)
             self.lay.update()
             
@@ -207,7 +217,9 @@ class DragAndScroll(QWidget):
 
         #clear 
         self.clearDrawings()
-
+        
+        self.var.dragActive = False  
+        self.y_list = None
         e.accept()
 
     def clearDrawings(self):
@@ -217,7 +229,8 @@ class DragAndScroll(QWidget):
         if self.current_folder_drop:
             self.current_folder_drop.appear_normal()
 
-    def dragLeaveEvent(self, event):      
+    def dragLeaveEvent(self, event):          
+        self.var.dragActive = False  
         self.y_list = None
         event.accept()
 
@@ -255,8 +268,7 @@ class DragAndScroll(QWidget):
                 self.current_folder_drop = mitem_middle
                 mitem_middle.appear_selected_drop()            
             return
-        if self.current_folder_drop:
-            
+        if self.current_folder_drop:            
             self.current_folder_drop.appear_normal_drop()
             self.current_folder_drop = None
         self.target_y = pos - 3
@@ -287,13 +299,14 @@ class DragAndScroll(QWidget):
 
     def createYlist(self):
         self.y_list = [(a.y(),a) for a in self.var.current_node.getChildren(copy=False)]
-        _1,_2 = self.y_list[0]
-        # finding max height
-        for i in range(1,len(self.y_list)):
-            if _1 < self.y_list[i][0]:
-                _1,_2 = self.y_list[i]
+        if self.y_list != []:
+            _1,_2 = self.y_list[0]
+            # finding max height
+            for i in range(1,len(self.y_list)):
+                if _1 < self.y_list[i][0]:
+                    _1,_2 = self.y_list[i]
 
-        self.y_list.append((_1+_2.size().height()+6,_2.size().height()))
+            self.y_list.append((_1+_2.size().height()+6,_2.size().height()))
         self.y_middle_list = [(a.y()+a.size().height()//2,a) for a in self.var.current_node.getChildren(copy=False)]
 
 
@@ -533,7 +546,10 @@ class SimplePasswordKeeper(QMainWindow):
 
         #END -> loadPassword
         self.main_layout = main_layout 
-        self.main_layout.addWidget(spk_search_field.SearchField(self.var),0,1)
+        self.spk_path = spk_path.SpkPath(self.var)
+        self.main_layout.addWidget(spk_search_field.SearchField(self.var),1,1)
+        self.main_layout.addWidget(self.spk_path,0,1)
+        
         self.loadPasswords()          
        
     def save(self,isbackup : bool = False): # TODO : a popup when saving password : keep the same or change
@@ -557,7 +573,7 @@ class SimplePasswordKeeper(QMainWindow):
                         string+=el.to_save_string()
                 string+=chr3
             except Exception as e:
-                self.logger.add("Failed to save a folder",e)
+                self.logger.add("Failed to save a folder",self.logger.error)
             return string
         
         
@@ -643,6 +659,7 @@ class SimplePasswordKeeper(QMainWindow):
         self.indicator.temp_message("Deleted password","orange",1)
 
     def createArea(self): 
+        
         widget=DragAndScroll(None,self.var)
         item_layout=QVBoxLayout(widget) 
         widget.lay = item_layout
@@ -654,7 +671,7 @@ class SimplePasswordKeeper(QMainWindow):
         scroll.setWidgetResizable(True)
         scroll.setWidget(widget)                # Scroll <- widget <- <- item layout
         item_layout.addStretch() 
-        self.main_layout.addWidget(scroll, 1 , 1)  
+        self.main_layout.addWidget(scroll, 2 , 1)  
         self.scroll_layout = item_layout   
 
 
@@ -671,7 +688,7 @@ class SimplePasswordKeeper(QMainWindow):
         
         self.logger.add("Created scroll area"+" "+self.var.current_node.getPath(),self.logger.success)  
         self.var.selection.reset() 
-                
+        self.spk_path.refresh()
         return scroll
 
     #utils   
