@@ -3,24 +3,27 @@ from hashlib import pbkdf2_hmac # sha256
 
 
 
-from PySide6.QtGui import QAction, QIcon, QShortcut, QKeySequence, QCursor
+from PySide6.QtGui import QAction, QIcon, QShortcut, QKeySequence, QCursor, QPainter, QPen, QColor
 
 from PySide6.QtWidgets import ( 
                             QGridLayout, QVBoxLayout, QWidget, 
                             QScrollArea, QToolBar, QMainWindow, 
                             QLineEdit, QSpacerItem, QMessageBox, 
-                            QWidgetItem, QInputDialog,  QSizePolicy  , QToolButton, QMenu                                  
+                            QWidgetItem, QInputDialog,  QSizePolicy  , QToolButton, QMenu                                
                             )
 
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import QTimer, Qt, QSocketNotifier, QPoint
 
 import qtawesome
 import time as func_timer
 import uuid as uuid_manager
 import argon2
 import base64
+import os 
+import socket
+import subprocess
 from cryptography.fernet import Fernet
-#TODO : Faire en sorte qu'un fichier / dossier ne soit pas faisable avec un uuid déjà utilisé !!!!!!!!!! 
+ 
 #spk
 import logs
 import spk_file_manager
@@ -75,9 +78,6 @@ def get_next(s : str, chars):
 
     return min_val
 
-
-
-
 def save_to_layout(s:str,vars: spk_variables.SpkVariables): # input is the decrypted save, output is the root with all the passwords and folders in it
     chr1,chr2,chr3,chr4 = vars.character
     
@@ -125,6 +125,180 @@ def save_to_layout(s:str,vars: spk_variables.SpkVariables): # input is the decry
             s = s[i+1:]
             stack.pop()
     
+
+
+class DragAndScroll(QWidget):
+    #to test with 0 and 1 item
+    LINE_THICKNESS = 3
+    LINE_COLOR = QColor("#7e5e5e")
+    def __init__(self,lay,var):
+        super().__init__()
+        self.lay : QVBoxLayout = self.layout()     
+        self.var = var
+        self.y_list : list | None = None
+        self.y_middle_list : list | None = None
+        self.setAcceptDrops(True)
+        self.target_y = None
+        self.target_y_item = None
+        
+        self.current_folder_drop = None
+
+    def dragEnterEvent(self, e):
+        e.accept()
+        self.createYlist()
+        
+
+    def dropEvent(self, e):
+        
+        pos = e.pos()
+        widget = e.source()
+
+     
+
+        #handle the drop
+        if self.target_y and self.target_y_item != widget:
+            #remove the initial item from the list, insert it at the right place
+            #finding the index of self.target_y_item in layout
+            after_widget = False
+            for n in range(self.lay.count()):
+                w = self.lay.itemAt(n).widget()
+                if w == self.target_y_item:
+                    if after_widget:
+                        index = n - 1
+                    else: # after_widget==False:
+                        index = n 
+                    break
+                elif w == widget:
+                    after_widget = True
+            else:
+                index = self.lay.count() - 2
+
+            self.lay.removeWidget(widget)
+            self.lay.insertWidget(index,widget)
+
+            after_widget = False
+            for i,item in enumerate(self.var.current_node.getChildren(copy=False)):                
+                if item == self.target_y_item:
+                    if after_widget:
+                        index = i - 1
+                    else: # after_widget==False:
+                        index = i 
+                    break
+                elif item == widget:
+                    after_widget = True
+            else:
+                index = -1
+
+            self.var.current_node.children_list.remove(widget)
+            self.var.current_node.children_list.insert(index,widget)
+        
+        elif self.current_folder_drop and self.current_folder_drop != widget:
+            self.lay.removeWidget(widget)
+            widget.setParent(self.current_folder_drop)   
+            if isinstance(widget,spk_folder.Folder):
+                widget.parent_folder = self.current_folder_drop         
+            self.var.current_node.children_list.remove(widget)
+            self.current_folder_drop.addChild(widget)
+            self.lay.update()
+            
+
+            
+            
+
+        #clear 
+        self.clearDrawings()
+
+        e.accept()
+
+    def clearDrawings(self):
+        self.target_y = None
+        self.target_y_item = None
+        self.update()
+        if self.current_folder_drop:
+            self.current_folder_drop.appear_normal()
+
+    def dragLeaveEvent(self, event):      
+        self.y_list = None
+        event.accept()
+
+    def dragMoveEvent(self,event):        
+        self.findDropPos(event.position().toPoint().y())
+        event.accept()
+
+    def findDropPos(self,y_pos):
+        if self.y_list == []: return
+        #finding min in y distance in self.y_list
+        pos,mitem = self.y_list[0] # m is not the real min distance at the moment
+        m = abs(pos - y_pos)
+        for i in range(1,len(self.y_list)):
+            y,it = self.y_list[i]
+            if abs(y-y_pos) < m:
+                m = abs(y-y_pos)
+                pos = y
+                mitem = it
+
+        #finding min in y distance in self.y_middle_list
+        pos_middle,mitem_middle = self.y_list[0] # m_middle is not the real min distance at the moment
+        m_middle = abs(pos_middle - y_pos)
+        for i in range(1,len(self.y_middle_list)):
+            y,it = self.y_middle_list[i]
+            if abs(y-y_pos) < m_middle:
+                m_middle = abs(y-y_pos)             
+                mitem_middle = it
+
+        if isinstance(mitem_middle,spk_folder.Folder) and m_middle<=3/8*mitem_middle.size().height():
+            self.target_y = None
+            self.target_y_item = None
+            self.update()
+            if self.current_folder_drop!=mitem_middle: 
+                if self.current_folder_drop: self.current_folder_drop.appear_normal()
+                self.current_folder_drop = mitem_middle
+                mitem_middle.appear_selected_drop()            
+            return
+        if self.current_folder_drop:
+            
+            self.current_folder_drop.appear_normal_drop()
+            self.current_folder_drop = None
+        self.target_y = pos - 3
+        self.target_y_item = mitem
+        self.update()
+        return
+
+
+        
+        
+
+    def paintEvent(self, event):        
+        
+        super().paintEvent(event)  
+        if self.target_y != None:      
+            painter = QPainter(self)
+            pen = QPen(self.LINE_COLOR)
+            pen.setWidth(self.LINE_THICKNESS)
+            painter.setPen(pen)
+            margin = self.lay.contentsMargins()
+            x1 = margin.left()
+            x2 = self.width() - margin.right()
+            painter.drawLine(QPoint(x1, self.target_y), QPoint(x2, self.target_y))
+            painter.end()                
+
+
+    
+
+    def createYlist(self):
+        self.y_list = [(a.y(),a) for a in self.var.current_node.getChildren(copy=False)]
+        _1,_2 = self.y_list[0]
+        # finding max height
+        for i in range(1,len(self.y_list)):
+            if _1 < self.y_list[i][0]:
+                _1,_2 = self.y_list[i]
+
+        self.y_list.append((_1+_2.size().height()+6,_2.size().height()))
+        self.y_middle_list = [(a.y()+a.size().height()//2,a) for a in self.var.current_node.getChildren(copy=False)]
+
+
+
+
 
 
 class SimplePasswordKeeper(QMainWindow):
@@ -354,7 +528,8 @@ class SimplePasswordKeeper(QMainWindow):
         self.timer2.timeout.connect(self.getMousePos)
         self.timer2.start(1000)
 
-        
+        #SOCKET
+        self.init_socket()
 
         #END -> loadPassword
         self.main_layout = main_layout 
@@ -468,18 +643,21 @@ class SimplePasswordKeeper(QMainWindow):
         self.indicator.temp_message("Deleted password","orange",1)
 
     def createArea(self): 
-        widget=QWidget()
+        widget=DragAndScroll(None,self.var)
         item_layout=QVBoxLayout(widget) 
+        widget.lay = item_layout
         for el in self.var.current_node.getChildren(copy=False):
             item_layout.addWidget(el)
 
         scroll = QScrollArea()
+        
         scroll.setWidgetResizable(True)
         scroll.setWidget(widget)                # Scroll <- widget <- <- item layout
         item_layout.addStretch() 
         self.main_layout.addWidget(scroll, 1 , 1)  
-        self.scroll_layout = item_layout 
-        self.scroll2 = scroll  
+        self.scroll_layout = item_layout   
+
+
         scroll.setStyleSheet(f"""QScrollBar:vertical {chr(123)} 
                                 {self.var.theme.get("scroll_bar_background").to_config()}
                             {chr(125)}
@@ -491,8 +669,9 @@ class SimplePasswordKeeper(QMainWindow):
                             {chr(125)}""")
         
         
-        self.logger.add("Created scroll area",self.logger.success)  
+        self.logger.add("Created scroll area"+" "+self.var.current_node.getPath(),self.logger.success)  
         self.var.selection.reset() 
+                
         return scroll
 
     #utils   
@@ -536,6 +715,44 @@ class SimplePasswordKeeper(QMainWindow):
             self.createArea()
         #self.current_node = 
 
+    def init_socket(self,SOCKET_PATH = "/home/matheo/projectsL/simple_password_keeper/src/spk.sock"):        
+        if os.path.exists(SOCKET_PATH):
+            os.unlink(SOCKET_PATH)        
+    
+        server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        server.setblocking(False)
+        server.bind(SOCKET_PATH)
+        server.listen()
 
+        def on_new_connection():
+            print("Received message")                       
+            conn, _ = server.accept()
+            data = conn.recv(4096)
+            if data:
+                print("Data is ", data.decode())
+                if data.decode() == "Exec":
+                    self.writePassword()
+            conn.close()
         
-      
+
+        # QSocketNotifier surveille le file descriptor
+        notifier = QSocketNotifier(server.fileno(), QSocketNotifier.Type.Read,self)
+        notifier.activated.connect(on_new_connection)
+        
+    def writePassword(self):
+        print("Trying to write")
+        if self.var.passwordToCopy:  
+            if len(self.var.passwordToCopy.getText())<1000:
+                subprocess.run(["zsh","-c","hyprctl keyword '$LAPTOP_KB_ENABLED' \"false\" -r"])       
+                writer = subprocess.run(["zsh", "-c", f"sleep 0.2 && ydotool type --key-delay 0 {self.var.passwordToCopy.getText()}"])
+                subprocess.run(["zsh","-c","hyprctl keyword '$LAPTOP_KB_ENABLED' \"true\" -r"])       
+
+            else:
+                writer = subprocess.run(["zsh", "-c", f"sleep 0.1 && ydotool type --key-delay 2 {self.var.passwordToCopy.getText()}"])
+
+            if writer.returncode != 0 :
+                self.logger.add("Couldn't write the password check if the ydotool deamon is active",self.logger.error)
+            else:
+                print("Success")
+        else:
+            print(self.var.passwordToCopy)

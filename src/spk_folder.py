@@ -1,14 +1,14 @@
 import uuid as uuid_manager
 
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QDrag, QPixmap
 
 from PySide6.QtWidgets import (
                             QCheckBox, QHBoxLayout, QVBoxLayout, 
                             QWidget, QLineEdit, QPushButton,   
-                            QTextEdit 
+                            QTextEdit  
                             )
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QMimeData
 from rapidfuzz import process, fuzz
 
 
@@ -44,9 +44,10 @@ class Folder(QWidget):
             self.parent_folder = parent if isinstance(parent,Folder) else variables.root # only to go up
             self.parent_folder.addChild(self)
         
-        self.main_layout   = QHBoxLayout()  
+        self.main_layout   = QHBoxLayout() 
+        self.selected_check = QCheckBox() 
         if  not kwargs.get("isRoot"):                 
-            self.folder_name = spk_password.PasswordName(name,lambda : self.var.selection.add(self))
+            self.folder_name = spk_password.PasswordName(name,lambda : ...)
         else:
             self.folder_name = QLineEdit(name)                
                  
@@ -60,11 +61,19 @@ class Folder(QWidget):
         self.folder_name.textChanged.connect(self.onFolderNameChange)       
         
              
+        #SELCTION CHECKMARK
+        self.selected_check.setCheckable(True)
+        self.selected_check.setChecked(False)
+        self.selected_check.setStyleSheet(self.var.theme.get("show_button").to_config())
+        self.selected_check.clicked.connect(lambda : self.var.selection.add(self))
+        
+     
              
 
         # BUILDING LAYOUT
         
         ## HORIZONTAL
+        self.main_layout.addWidget(self.selected_check)
         self.main_layout.addWidget(self.folder_name)         
          
 
@@ -77,7 +86,17 @@ class Folder(QWidget):
         self.setStyleSheet(self.var.theme.get("password_background").to_config())  
         self.setMaximumHeight(self.config_height)       
         
-        
+    def mouseMoveEvent(self, e):
+       if e.buttons() == Qt.LeftButton:
+            drag = QDrag(self)
+            mime = QMimeData()
+            drag.setMimeData(mime)
+            
+            pixmap = QPixmap(self.size())
+            self.render(pixmap)
+            drag.setPixmap(pixmap)
+
+            drag.exec_(Qt.MoveAction)
 
     
     def copy(self,parent,memo,bypassParent):  #parent is the copy of the parent  
@@ -93,7 +112,7 @@ class Folder(QWidget):
 
              
         for el in self.children_list:
-            p=el.copy(parent=f)
+            p=el.copy(parent=f,memo=memo,bypassParent=False)
             l.append(p) 
 
         memo[id(self)] = f
@@ -142,6 +161,9 @@ class Folder(QWidget):
         if child in self.children_list: 
             self.logger.add("Duplicating a child is not allowed", self.logger.warning)
             return
+        if self == child:
+            self.logger.add("A child cannot be its own parent", self.logger.error)
+            return
         self.children_list.append(child)
 
     def deleteChild(self,child,silent = True): #if not silent log will be dislayed
@@ -166,14 +188,30 @@ class Folder(QWidget):
 
         self.children_list = l 
         
+    def appear_selected(self):
+        self.setStyleSheet(self.var.theme.get("password_background_selected").to_config())              
+        self.selected_check.setChecked(True)        
+    
+    def appear_selected_drop(self):
+        self.setStyleSheet(self.var.theme.get("folder_background_drop").to_config())              
+              
+
     def appear_normal(self):
         self.setStyleSheet(self.var.theme.get("password_background").to_config()) 
+        self.selected_check.setChecked(False) 
 
-    def appear_selected(self):
-        self.setStyleSheet(self.var.theme.get("password_background_selected").to_config()) 
+    def appear_normal_drop(self):
+        if self.selected_check.isChecked():
+            self.appear_selected()
+        else:
+            self.appear_normal()
+        
+             
+
+    
 
     def mouseReleaseEvent(self, event):
-        self.var.selection.add(self)        
+        #self.var.selection.add(self)        
         return super().mouseReleaseEvent(event)    
 
     def delete(self):
@@ -189,3 +227,18 @@ class Folder(QWidget):
         self.var.current_node = self
         self.var.manager.createArea()           
         event.accept()
+
+
+    def __bool__(self):
+        return True
+    
+
+    def getPath(self):
+        f = self
+        path = f.getName()
+        while f != self.var.root:
+            f = f.parent_folder
+            path = f.getName() + "/" + path
+        return path
+    
+    

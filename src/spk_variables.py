@@ -28,6 +28,7 @@ class SpkVariables():
         self.root =  spk_folder.Folder(self,name="Root",children=[],parent=None,isRoot=True)
         self.current_node : spk_folder.Folder = self.root # same
         self.selection = None
+        self.passwordToCopy = None
         
 
     def loadConfig(self,path: str):     

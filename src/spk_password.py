@@ -1,6 +1,6 @@
 import uuid as uuid_manager
 
-from PySide6.QtGui import QColor 
+from PySide6.QtGui import QColor, QDrag, QPixmap, QPainter, QPen
 
 from PySide6.QtWidgets import (
                             QCheckBox, QHBoxLayout, QVBoxLayout, 
@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
                             QTextEdit
                             )
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QMimeData, QPoint
 from rapidfuzz import process, fuzz
 
 import qtawesome
@@ -94,10 +94,13 @@ class Password(QWidget):
         self.password_field = QTextEdit()        
         self.main_password_layout   = QVBoxLayout()       
         self.top_password_layout = QHBoxLayout()             
-        self.password_name = PasswordName(name,lambda : self.var.selection.add(self))    
+        self.password_name = PasswordName(name,lambda : ...)    
                   
         
-        self.push = Push(self.onEchoChange)         
+        self.push = Push(self.onEchoChange)       
+        self.copy_button =  QPushButton()
+        self.selected_check = QCheckBox()
+        
         
         self.isEdited = False
         self.isShown = False
@@ -131,15 +134,28 @@ class Password(QWidget):
         self.push.setChecked(False)        
         self.push.toggled.connect( self.onEchoChange)
         self.push.setStyleSheet(self.var.theme.get("show_button").to_config())
-           
+        
+        #COPY BUTTON
+        self.copy_button.setIcon(qtawesome.icon("fa6s.angle-left",color="white")) 
+        self.copy_button.setCheckable(True)
+        self.copy_button.setChecked(False)
+        self.copy_button.toggled.connect(self.switchCopy)          
+        self.copy_button.setStyleSheet(self.var.theme.get("show_button").to_config())
 
+        #SELCTION CHECKMARK
+        self.selected_check.setCheckable(True)
+        self.selected_check.setChecked(False)
+        self.selected_check.setStyleSheet(self.var.theme.get("show_button").to_config())
+        self.selected_check.clicked.connect(lambda : self.var.selection.add(self))
         
 
         # BUILDING LAYOUT
         
         ## HORIZONTAL
+        self.top_password_layout.addWidget(self.selected_check)
         self.top_password_layout.addWidget(self.password_name) 
         self.top_password_layout.addWidget(self.push) 
+        self.top_password_layout.addWidget(self.copy_button) 
         
         
 
@@ -225,13 +241,18 @@ class Password(QWidget):
         return is_in_name or is_in_pw
     
     def appear_selected(self):
-        self.setStyleSheet(self.var.theme.get("password_background_selected").to_config()) 
+        self.setStyleSheet(self.var.theme.get("password_background_selected").to_config())              
+        self.selected_check.setChecked(True)        
 
     def appear_normal(self):
         self.setStyleSheet(self.var.theme.get("password_background").to_config()) 
+        self.selected_check.setChecked(False)        
 
+
+    #does nothing for now
     def mouseReleaseEvent(self, event):
-        self.var.selection.add(self)
+        
+        #self.var.selection.add(self) 
 
         return super().mouseReleaseEvent(event)
 
@@ -251,12 +272,7 @@ class Password(QWidget):
         if self in self.var.current_shown_fields:
             self.var.current_shown_fields.remove(self)
         self.var.selection.remove(self)
-        
-        
-
-        
-
-
+      
     def to_save_string(self): # create a string which will be used to save the password info (see spk_manager.save)
         chr1,chr2,_,_ = self.var.character
         name : str = self.password_name.text()
@@ -270,6 +286,41 @@ class Password(QWidget):
             return ""
         else:
             return chr1+name+ chr1+str(uuid) +chr1+pw
-#save file 
-#password : chr1, name , chr1, uuid, chr1 , password
-#folder : chr2, name , chr2, uuid , chr2 , children
+        #save file 
+        #password : chr1, name , chr1, uuid, chr1 , password
+        #folder : chr2, name , chr2, uuid , chr2 , children
+
+    def mouseMoveEvent(self, e):
+       if e.buttons() == Qt.LeftButton:
+            drag = QDrag(self)
+            mime = QMimeData()
+            drag.setMimeData(mime)
+            
+            pixmap = QPixmap(self.size())
+            self.render(pixmap)
+            drag.setPixmap(pixmap)
+
+            drag.exec_(Qt.MoveAction)
+
+    def __bool__(self):
+        return True
+
+    def toCopy(self): #func to set the current password as the password to copy
+        print("Set to copy !")
+        if self.var.passwordToCopy : self.var.passwordToCopy.unCopy()
+        self.var.passwordToCopy = self
+
+
+    def unCopy(self): #func to untoggle copy 
+        self.copy_button.setChecked(False)
+        self.var.passwordToCopy = None
+
+    def switchCopy(self):
+        if self.copy_button.isChecked :
+            self.toCopy()
+        else:
+            self.var.passwordToCopy = None
+
+
+    
+
