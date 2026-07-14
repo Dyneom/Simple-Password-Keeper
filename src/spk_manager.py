@@ -343,7 +343,7 @@ class SimplePasswordKeeper(QMainWindow):
                 pw_h=pbkdf2_hmac('sha256', bytes(pw,encoding='utf8'), salt, iter)          
                 self.file_manager.set_hash(ph.hash(password=pw_h,salt=salt))
                 
-                self.logger.add("New password set")            
+                            
                 
                             
                 pw_hmain= base64.urlsafe_b64encode(pbkdf2_hmac('sha256', bytes(pw,encoding='utf8'), salt, iter))
@@ -459,9 +459,10 @@ class SimplePasswordKeeper(QMainWindow):
         
 
         menu = QMenu(self)
-        menu.addAction("Paramètres", lambda: print("Paramètres"))
-        menu.addAction("Aide", lambda: print("Aide"))        
-        menu.addAction("Quitter", self.close)
+        menu.addAction("Settings", lambda: print("Settings"))
+        menu.addAction("Help", lambda: print("Help"))        
+        menu.addAction("Change password", self.changePassword)     
+        menu.addAction("Quit", self.close)
 
         
         btn = QToolButton(self)
@@ -773,3 +774,23 @@ class SimplePasswordKeeper(QMainWindow):
                 print("Success")
         else:
             print(self.var.passwordToCopy)
+
+
+    def changePassword(self,message = "Hello, to what do you want to change your password?" ):
+        hash_func = pbkdf2_hmac
+        result = 1
+        pw = ""      
+        salt = os.urandom(256)
+        iter = 5_000_000
+        l = 5   # min password length
+        while result == 1 and len(pw) < l:
+            result, pw = self.ask_password(message,hide = False) 
+            message = f"The lenght of the password must be at least equal to {l}"
+        if result == 0: return False # not set
+        ph = argon2.PasswordHasher(time_cost=10,memory_cost=1000,hash_len=32) 
+        sha_256 = hash_func('sha256', bytes(pw,encoding='utf8'), salt, iter)         
+        self.file_manager.setFernet(base64.urlsafe_b64encode(sha_256))
+        self.file_manager.set_hash(ph.hash(password=sha_256,salt=salt))  
+        self.file_manager.salt = salt      
+        self.logger.add("New password set")
+        return True

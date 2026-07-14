@@ -65,6 +65,12 @@ class FileManager():
     def get_content(self) -> str:
         return self.content
     
+
+    def setFernet(self,key):
+        self.fernet = Fernet(key)
+
+    
+    
     #file directory manager
     def set_file_dir(self,file_dir, update_content = True):
         self.file_dir = file_dir

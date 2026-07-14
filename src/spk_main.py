@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
 
 # TODO LIST:  
-# - be able to change the master password
+# X be able to change the master password
 # - import passwords
 # X export passwords (copy the file :) ) 
 # X make it able to run with argparse
