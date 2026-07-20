@@ -9,10 +9,11 @@ from PySide6.QtWidgets import (
                             QGridLayout, QVBoxLayout, QWidget, 
                             QScrollArea, QToolBar, QMainWindow, 
                             QLineEdit, QSpacerItem, QMessageBox, 
-                            QWidgetItem, QInputDialog,  QSizePolicy  , QToolButton, QMenu                                
+                            QWidgetItem, QInputDialog,  QSizePolicy  , QToolButton, QMenu, QFileDialog                          
                             )
 
-from PySide6.QtCore import QTimer, Qt, QSocketNotifier, QPoint
+from PySide6.QtCore import QTimer, Qt, QSocketNotifier, QPoint, QEvent
+
 
 import qtawesome
 import time as func_timer
@@ -34,99 +35,7 @@ import spk_search_field
 import spk_folder
 import spk_selection
 import spk_path
-
-def contains(string:str, l: list[str]) -> bool:
-    for i in l:
-        if string.find(i)!=-1: return True
-    return False
-
-class WrongFileSyntax(Exception): pass
-
-def get_next(s : str, chars): 
-    if chars == []:
-        raise ValueError("The character array is empty")
-    if len(chars) == 1:
-        v = s.find(chars[0])
-        if v == -1:
-            raise WrongFileSyntax(f"The end of the file was reached without finding {chars[0]}")
-        return v
-    if isinstance(chars,str):
-        v = s.find(chars)
-        if v == -1:
-            raise WrongFileSyntax(f"The end of the file was reached without finding {chars}")
-        return v
-    
-
-
-    u = []
-    for c in chars:
-        u.append((s.find(c),c))
-    max_v = -2 # will be replaced even if the first value wasn't found 
-    min_val = (-1,u[0][1]) #val, char
-    for i in range(0,len(u)):
-        if u[i][0] > max_v:
-            max_v = u[i][0]
-        if min_val[0] == -1 or (u[i][0] < min_val[0] and u[i][0] != -1):
-            min_val = u[i]
-
-        
-    if max_v == -1:    
-        raise WrongFileSyntax(f"The end of the file was reached without finding any of {chars}")
-    elif max_v == -2:
-        raise Exception("This shouldn't happen. The str.find should return at least -1 not -2 or less")
-    if min_val[0] == -1:
-        raise WrongFileSyntax(f"The end of the file was reached without finding any of {chars}. You shouldn't see this error if the code worked")
-
-    return min_val
-
-def save_to_layout(s:str,vars: spk_variables.SpkVariables): # input is the decrypted save, output is the root with all the passwords and folders in it
-    chr1,chr2,chr3,chr4 = vars.character
-    
-    root = vars.root
-    stack = [root]
-    while stack != [] and s != "":
-        i,chr = get_next(s,[chr1,chr2,chr3]) # must handle the error 
-        if chr == chr1: #password
-
-            s = s[i+1:] 
-
-            name_end = get_next(s,chr)
-            name = s[:name_end]
-            s = s[name_end+1:] 
-
-            uuid_end = get_next(s,chr)          
-            uuid = s[:uuid_end]
-            s = s[uuid_end+1:]
-
-            if s != "":
-                pw_end,_ = get_next(s,[chr1,chr2,chr3])          
-                pw = s[:max(0,pw_end-1)]
-                s = s[pw_end:]
-            else:
-                pw = ""
-
-            spk_password.Password(vars,parent=stack[-1],name=name,password_text=pw,uuid=uuid)           
-        elif chr == chr2: # folder
-            s = s[i+1:] 
-
-
-            name_end = get_next(s,chr)
-            name = s[:name_end]
-            s = s[name_end+1:] 
-            
-
-            uuid_end = get_next(s,chr)          
-            uuid = s[:uuid_end]
-            s = s[uuid_end+1:]
-            f = spk_folder.Folder(variables=vars,parent=stack[-1],name=name,children=[],uuid=uuid)
-                      
-            stack.append(f)
-            
-        elif chr == chr3: #end of a folder
-            s = s[i+1:]
-            stack.pop()
-    
-
+import spk_encryption_manager
 
 class DragAndScroll(QWidget):
     #to test with 0 and 1 item
@@ -319,79 +228,23 @@ class SimplePasswordKeeper(QMainWindow):
 
     def __init__(self,dir,var : spk_variables.SpkVariables):
         super().__init__()
-
+        self.var = var
+        self.var.manager = self
         self.logger=logs.Logger(display=var.settings.to_settings("logs"),name="manager_log")
         self.theme = var.theme        
         self.settings = var.settings      
 
         
-        self.file_manager = spk_file_manager.FileManager(key = "",file_dir="test_file.spk",settings=self.settings) # No key at this point of the file, the key is set after in self.verify_password
-        salt = self.file_manager.get_salt()
-        hash = self.file_manager.get_hash()
+        self.file_encryption_manager = spk_encryption_manager.Spk_Encryption(self.var,file_dir="test_file.spk") 
         
-        self.var = var
-        
-            
-        iter = 5_000_000
-        ph = argon2.PasswordHasher(time_cost=10,memory_cost=1000,hash_len=32)  
-        should_exit = False
-        if hash == None :
-            while should_exit == False: #false endless loop
-                result,pw = self.ask_password("Choose a password", hide = False)  
-                if result == 0 : exit()
-                if len(pw) < 5: continue
-                pw_h=pbkdf2_hmac('sha256', bytes(pw,encoding='utf8'), salt, iter)          
-                self.file_manager.set_hash(ph.hash(password=pw_h,salt=salt))
-                
-                            
-                
-                            
-                pw_hmain= base64.urlsafe_b64encode(pbkdf2_hmac('sha256', bytes(pw,encoding='utf8'), salt, iter))
-                pw = "NO" 
-                self.file_manager.fernet = Fernet(pw_hmain)
-                self.initApp()
-                return 
-
-        hash = str(hash,encoding="utf8")
-        result,p_w = self.ask_password("Input your password")    
-        
-        while result == 1 and not self.verify_password(hash=hash,password_hasher=ph,salt = salt,iter=iter,pw=p_w):
-            result,p_w = self.ask_password("Wrong Password")            
-
-        if result == 0 : 
+        result = self.file_encryption_manager.handle_password_at_start()
+        if result :
+            self.logger.add(f"Starting app",self.logger.success)
+            self.initApp()            
+        else: # result == False; invalid syntax or user stop
+            self.logger.add("Due to invalid syntax or user stop, the app wasn't started",self.logger.information)
             exit()
-        
-        if  result == 1 :
-            self.initApp()
-
-        self.logger.add(f"Init finished | Launching app (result : {result})",self.logger.success)
- 
-    def loadPasswords(self):
-        chr1,chr2,chr3,chr4 = self.var.character
-        self.file_manager.load_encrypted_content()
-        worked = self.file_manager.decrypt_content()
-        if worked:
-            pw_list = []
-            content = self.file_manager.get_content()
-            if content != "":                
-                try:
-                    save_to_layout(content,self.var)    #automaticaly set it to root               
-                except NotADirectoryError as e:
-                    self.logger.add(f"THIS IS A BUG : Problem occured when trying to recreate the password layout, a password could be missing (Exception : {e})",self.logger.critical_error) #you can add "when extracting : {content}" to know what makes the error (it isn't done due to security reasons)
-                                  
-            self.createArea()
-   
-    def verify_password(self,hash,password_hasher,salt,iter,pw) -> bool:
-        try:
-            pw_h=pbkdf2_hmac('sha256', bytes(pw,encoding='utf8'), salt, iter)            
-            password_hasher.verify(hash,pw_h) 
-            #If no exception was raised
-            pw_hmain= base64.urlsafe_b64encode(pbkdf2_hmac('sha256', bytes(pw,encoding='utf8'), salt, iter))
-            pw = "NO" 
-            self.file_manager.fernet = Fernet(pw_hmain)
-            return True
-        except argon2.exceptions.VerifyMismatchError :
-            return False    
+    
 
     def wrong_character_popup(self):
         msg = QMessageBox()
@@ -403,34 +256,7 @@ class SimplePasswordKeeper(QMainWindow):
         self.logger.add("Non standard characters (U+9667) or (U+5345). Couldn't save",self.logger.error)
         msg.exec()
         
-    def ask_password(self,message :str,hide = True):
-        dialog=QInputDialog(self) 
-             
-        if hide : dialog.setTextEchoMode(QLineEdit.EchoMode.NoEcho)
-        dialog.setLabelText(message)
-        dialog.setInputMode(QInputDialog.InputMode.TextInput)
-        dialog.setCancelButtonText("Exit")
-        dialog.setStyleSheet(self.theme.get("dialog_password_main").to_config())
-        
-        dialog.children()[0].setStyleSheet(self.theme.get("dialog_password_message").to_config())
-        dialog.children()[1].setStyleSheet(self.theme.get("dialog_password_password").to_config())
-        dialog.children()[2].setStyleSheet(self.theme.get("dialog_password_buttons").to_config())
-        dialog.children()[2].children()[1].setIcon(QIcon()) # YES
-        dialog.children()[2].children()[2].setIcon(QIcon()) # NO
-      
-           
-        result  = dialog.exec()
-        
-        if isinstance(dialog.children()[0],QLineEdit):            
-            pw = dialog.children()[0].text()
-        elif isinstance(dialog.children()[1],QLineEdit):     #the order changes if the hide is at true or not        
-            pw = dialog.children()[1].text()
-        else: 
-            self.logger.add("Failed to read password",self.logger.shutdown_error)
-            exit(1)     
-        
-        return result,pw
-    
+   
     def initApp(self):
 
         #SELECTION
@@ -461,7 +287,8 @@ class SimplePasswordKeeper(QMainWindow):
         menu = QMenu(self)
         menu.addAction("Settings", lambda: print("Settings"))
         menu.addAction("Help", lambda: print("Help"))        
-        menu.addAction("Change password", self.changePassword)     
+        menu.addAction("Change password", self.file_encryption_manager.changePassword)     
+        menu.addAction("Import passwords", self.file_encryption_manager.import_passwords)     
         menu.addAction("Quit", self.close)
 
         
@@ -530,6 +357,10 @@ class SimplePasswordKeeper(QMainWindow):
         delete_shortcut.activated.connect(self.var.selection.delete_selection)
 
         
+        debug_shortcut = QShortcut(QKeySequence("Ctrl+P"), self)
+        debug_shortcut.activated.connect(self.file_encryption_manager.save_prompt)
+
+        
 
         #TIMERS
         self.timer = QTimer(self)
@@ -551,7 +382,9 @@ class SimplePasswordKeeper(QMainWindow):
         self.main_layout.addWidget(spk_search_field.SearchField(self.var),1,1)
         self.main_layout.addWidget(self.spk_path,0,1)
         
-        self.loadPasswords()          
+        self.file_encryption_manager.createPasswordTree()   
+        self.createArea()  
+        self.file_encryption_manager.setSaved(True) #as functions that should have changed the state were used before, restoring the right state   
        
     def save(self,isbackup : bool = False): # TODO : a popup when saving password : keep the same or change
         t = func_timer.time()
@@ -587,10 +420,11 @@ class SimplePasswordKeeper(QMainWindow):
                     csv_to_encrypt+=create_folder_string(folder=w,string="")
                     
                                                                       
-        self.file_manager.set_content(csv_to_encrypt) 
-        self.file_manager.encrypt_content(is_backup= isbackup)
-        self.file_manager.save(is_backup= isbackup)        
-        if not isbackup : self.indicator.set("Saved","green") 
+        self.file_encryption_manager.set_content(csv_to_encrypt) 
+        self.file_encryption_manager.encrypt_content(is_backup= isbackup)
+        self.file_encryption_manager.save(is_backup= isbackup)        
+        if not isbackup :             
+            self.file_encryption_manager.setSaved(True)  
         else : self.indicator.temp_message("Backed up",('green', 200),1)
         self.logger.add(f"Saved in {func_timer.time()-t}s")
 
@@ -600,22 +434,22 @@ class SimplePasswordKeeper(QMainWindow):
                         
         
            
-    def newPassword(self):
+    def newPassword(self): #creates a new password
         
         new_pass_lay=spk_password.Password(self.var,name = "New Password",password_text = "",parent=self.var.current_node)          
         self.scroll_layout.insertWidget(0,new_pass_lay)        
-        self.logger.add("Created new password",self.logger.success)
-        self.indicator.set("Not saved","blue")
+        self.logger.add("Created new password",self.logger.success)        
+        self.file_encryption_manager.setSaved(False)  
         self.indicator.temp_message("Created password","gold",1)
     
-    def newFolder(self):        
+    def newFolder(self):  #creates a new folder    
         new_folder_lay=spk_folder.Folder(self.var,parent=self.var.current_node,children=[],name = "New Folder")              
         self.scroll_layout.insertWidget(0,new_folder_lay)
-        self.logger.add("Created new folder",self.logger.success)
-        self.indicator.set("Not saved","blue")
+        self.logger.add("Created new folder",self.logger.success)        
+        self.file_encryption_manager.setSaved(False)  
         self.indicator.temp_message("Created folder","gold",1)
 
-    def deleteItem(self,passw_uuid : uuid_manager.UUID,no_pop_up=False,from_selection = False):
+    def deleteItem(self,passw_uuid : uuid_manager.UUID,no_pop_up=False,from_selection = False):        
         #POP-UP
         if not no_pop_up:    
             msg = QMessageBox()
@@ -650,13 +484,14 @@ class SimplePasswordKeeper(QMainWindow):
                     
                                  
                     self.logger.add(f"Successfully deleted the item ({tmp_uuid})",self.logger.success) 
-                    self.scroll_layout.addStretch()                   
+                    self.scroll_layout.addStretch()             
+                     
                     break                    
             except Exception as e:
                 self.logger.add(f"Exception when deleting the password (position {i}): {e}",self.logger.error)        
         else:
-            self.logger.add("No password were deleted",self.logger.warning)
-        self.indicator.set("Not saved","blue")
+            self.logger.add("No password were deleted",self.logger.warning)        
+        self.file_encryption_manager.setSaved(False)     
         self.indicator.temp_message("Deleted password","orange",1)
 
     def createArea(self): 
@@ -698,9 +533,18 @@ class SimplePasswordKeeper(QMainWindow):
         exit()
 
     def closeEvent(self, event):
-        self.save()
-        self.logger.add("Closing app, saving...")
-        event.accept()
+        self.logger.add("Closing app, ...")
+        res = self.file_encryption_manager.close_save_prompt()
+        if res == 1 :
+            self.save()
+            event.accept()            
+        elif res == 0: 
+            event.accept()
+        elif res == -1:
+            self.logger.add("App closing prevented")
+            event.ignore()
+        
+        
 
     def getMousePos(self):
         global_pos =  QCursor.pos()  
@@ -733,7 +577,7 @@ class SimplePasswordKeeper(QMainWindow):
             self.createArea()
         #self.current_node = 
 
-    def init_socket(self,SOCKET_PATH = "/home/matheo/projectsL/simple_password_keeper/src/spk.sock"):        
+    def init_socket(self,SOCKET_PATH = "/home/matheo/projectsL/simple_password_keeper/src/spk.sock"):   # work in progress...     
         if os.path.exists(SOCKET_PATH):
             os.unlink(SOCKET_PATH)        
     
@@ -757,7 +601,7 @@ class SimplePasswordKeeper(QMainWindow):
         notifier = QSocketNotifier(server.fileno(), QSocketNotifier.Type.Read,self)
         notifier.activated.connect(on_new_connection)
         
-    def writePassword(self):
+    def writePassword(self):# work in progress...
         print("Trying to write")
         if self.var.passwordToCopy:  
             if len(self.var.passwordToCopy.getText())<1000:
@@ -775,22 +619,8 @@ class SimplePasswordKeeper(QMainWindow):
         else:
             print(self.var.passwordToCopy)
 
+    
 
-    def changePassword(self,message = "Hello, to what do you want to change your password?" ):
-        hash_func = pbkdf2_hmac
-        result = 1
-        pw = ""      
-        salt = os.urandom(256)
-        iter = 5_000_000
-        l = 5   # min password length
-        while result == 1 and len(pw) < l:
-            result, pw = self.ask_password(message,hide = False) 
-            message = f"The lenght of the password must be at least equal to {l}"
-        if result == 0: return False # not set
-        ph = argon2.PasswordHasher(time_cost=10,memory_cost=1000,hash_len=32) 
-        sha_256 = hash_func('sha256', bytes(pw,encoding='utf8'), salt, iter)         
-        self.file_manager.setFernet(base64.urlsafe_b64encode(sha_256))
-        self.file_manager.set_hash(ph.hash(password=sha_256,salt=salt))  
-        self.file_manager.salt = salt      
-        self.logger.add("New password set")
-        return True
+
+
+

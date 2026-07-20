@@ -17,8 +17,7 @@ if __name__ == "__main__":
     
     
     app.setFont(font)
-    spk_app = spk_manager.SimplePasswordKeeper(dir="",var=vars) 
-    vars.manager = spk_app
+    spk_app = spk_manager.SimplePasswordKeeper(dir="",var=vars)     
     app.setStyle(QStyleFactory.create(vars.theme.get("global").get("global")))
     spk_app.setStyleSheet(vars.theme.get("background").to_config())     
     

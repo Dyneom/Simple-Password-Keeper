@@ -10,21 +10,23 @@ import binascii
 
 class FileManager():
     
-    def __init__(self,key,settings,file_dir,content="",encrypted_content=bytes()):
+    def __init__(self,settings,file_dir,content="",encrypted_content=bytes()):
         super().__init__()        
         self.file_logger = logs.Logger(display=settings.to_settings("logs"),write_in_file=False,name="file_manager")
         self.file_dir=file_dir
         self.content = content
         self.settings = settings
+        self.reason = ""
         
-        #self.fernet=Fernet(key) 
+        
         
         #init 
         if not os.path.exists(file_dir):
             with open(file_dir,"w") as f:
                 self.encrypted_content = bytes()
-                self.salt = os.urandom(256)
+                self.gen_salt()
                 self.hash = None
+                self.reason = "Creation"
         else:
             with open(file_dir,"rb") as f2:
                 tmp_e_c = f2.read()                                   
@@ -40,7 +42,8 @@ class FileManager():
                 else: 
                     self.file_logger.add("The saved file has not the right syntax, couldnt parse the content",self.file_logger.error)
                     self.hash = None
-                    self.salt = os.urandom(256)
+                    self.reason = "Wrong syntax"
+                    self.gen_salt()
                     self.encrypted_content = bytes()
                     
                 
@@ -189,6 +192,12 @@ class FileManager():
 
     def get_salt(self):
         return self.salt
+
+    def set_salt(self,_salt):
+        self.salt = _salt
+
+    def gen_salt(self):
+        self.salt = os.urandom(256)
 
     def get_hash(self):
         return self.hash

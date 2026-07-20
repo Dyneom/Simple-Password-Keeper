@@ -195,11 +195,11 @@ class Password(QWidget):
 
     
     def onPasswordNameChange(self):        
-        self.var.resetMousePos()
-        self.var.indicator.set("Not saved","blue")
+        self.var.resetMousePos()        
+        self.var.manager.file_encryption_manager.setSaved(False)    
 
-    def onPasswordFieldChange(self):          
-        self.var.indicator.set("Not saved","blue")
+    def onPasswordFieldChange(self):         
+        self.var.manager.file_encryption_manager.setSaved(False)    
         self.var.resetMousePos()
         self.resize()
         if self.getText()=="":
@@ -272,6 +272,7 @@ class Password(QWidget):
         if self in self.var.current_shown_fields:
             self.var.current_shown_fields.remove(self)
         self.var.selection.remove(self)
+        self.var.manager.file_encryption_manager.setSaved(False)    
       
     def to_save_string(self): # create a string which will be used to save the password info (see spk_manager.save)
         chr1,chr2,_,_ = self.var.character

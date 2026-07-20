@@ -121,11 +121,11 @@ class Folder(QWidget):
 
 
     def onFolderNameChange(self):
-        self.var.resetMousePos()
-        self.var.indicator.set("Not saved","blue")
+        self.var.resetMousePos()        
+        self.var.manager.file_encryption_manager.setSaved(False)    
 
-    def onFolderFieldChange(self):          
-        self.var.indicator.set("Not saved","blue")
+    def onFolderFieldChange(self):            
+        self.var.manager.file_encryption_manager.setSaved(False)     
         self.var.resetMousePos()        
         if self.getText()=="":
             self.folder_name.setStyleSheet(self.var.theme.get("password_warning").to_config())        
@@ -165,9 +165,13 @@ class Folder(QWidget):
             self.logger.add("A child cannot be its own parent", self.logger.error)
             return
         self.children_list.append(child)
+        self.var.manager.file_encryption_manager.setSaved(False)    
+
 
     def deleteChild(self,child,silent = True): #if not silent log will be dislayed
-        if child in self.children_list : self.children_list.remove(child)
+        if child in self.children_list : 
+            self.children_list.remove(child)
+            self.var.manager.file_encryption_manager.setSaved(False)    
         elif not silent : self.logger.add("You are trying to remove a child which doesn't exist!", self.logger.warning)
 
     def getChildren(self, copy = True):        
@@ -186,6 +190,7 @@ class Folder(QWidget):
                 l2.append(el.copy())
 
         self.children_list = l 
+        self.var.manager.file_encryption_manager.setSaved(False)    
         
     def appear_selected(self):
         self.setStyleSheet(self.var.theme.get("password_background_selected").to_config())              
@@ -219,6 +224,7 @@ class Folder(QWidget):
         for el in self.children_list:
             el.delete()        
         self.var.selection.remove(self)
+        self.var.manager.file_encryption_manager.setSaved(False)    
 
     
 
@@ -253,6 +259,7 @@ class Folder(QWidget):
             return
         self.children_list.remove(child)
         self.children_list.insert(index,child)
+        self.var.manager.file_encryption_manager.setSaved(False)    
 
     
     
