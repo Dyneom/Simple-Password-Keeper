@@ -25,7 +25,7 @@ import subprocess
 from cryptography.fernet import Fernet
  
 #spk
-import logs
+import spk_logs
 import spk_file_manager
 import spk_indicator
 import spk_password

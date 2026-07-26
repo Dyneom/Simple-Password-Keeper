@@ -3,20 +3,21 @@ from PySide6.QtGui import QCursor
 
 import spk_password
 import spk_folder
-from logs import Logger
+from spk_logs import Logger
 import spk_theme
 import json
 import os
 
 class SpkVariables():
-    def __init__(self,indicator = None,settings = None,theme="",config="",last_mouse_pos : tuple= None,current_field_edited : spk_password.Password = None,current_shown_fields : list[spk_password.Password] = None,editing :bool = None):
+    def __init__(self,indicator = None,settings = None,theme="",config="",last_mouse_pos : tuple= None,current_field_edited : spk_password.Password = None,current_shown_fields : list[spk_password.Password] = None,editing :bool = None, isVerbose=False):
+        self.isVerbose = isVerbose        
         self.indicator = indicator
         self.settings = settings
         self.theme: spk_theme.SpkTheme | str = theme  
         self.config: spk_theme.SpkTheme | str = config 
         self.loadConfig(config)
         self.loadTheme(theme) 
-        self.global_logs = Logger(display=True,write_in_file=False,name = "global")
+        self.global_logs = Logger(self,display=True,write_in_file=False,name = "global")
         self.last_mouse_pos = last_mouse_pos        
         self.current_shown_fields = current_shown_fields
         self.editing = editing
@@ -30,6 +31,7 @@ class SpkVariables():
         self.selection = None
         self.passwordToCopy = None
         self.dragActive = False
+        
         
 
     def loadConfig(self,path: str):     
@@ -71,7 +73,7 @@ class SpkVariables():
 
 
     def loadTheme(self,path):
-        self.theme = spk_theme.SpkTheme(path,settings=self.settings) 
+        self.theme = spk_theme.SpkTheme(path,self) 
 
 
     def resetMousePos(self):

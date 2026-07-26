@@ -26,7 +26,7 @@ import subprocess
 from cryptography.fernet import Fernet
  
 #spk
-import logs
+import spk_logs
 import spk_file_manager
 import spk_indicator
 import spk_password
@@ -41,7 +41,7 @@ class DragAndScroll(QWidget):
     #to test with 0 and 1 item
     LINE_THICKNESS = 3
     LINE_COLOR = QColor("#7e5e5e")
-    def __init__(self,lay,var):
+    def __init__(self,var):        
         super().__init__()
         self.lay : QVBoxLayout = self.layout()     
         self.var = var
@@ -52,6 +52,7 @@ class DragAndScroll(QWidget):
         self.target_y_item = None
         
         self.current_folder_drop = None
+        self.logger = spk_logs.Logger(self.var,True,False,"DragAndScroll")
 
     def dragEnterEvent(self, e):
         self.var.dragActive = True
@@ -62,7 +63,8 @@ class DragAndScroll(QWidget):
         
         
 
-    def dropEvent(self, e):        
+    def dropEvent(self, e): 
+        self.logger.add("Drop event",self.logger.verbose)       
         pos = e.pos()
         widget = e.source()
 
@@ -74,6 +76,7 @@ class DragAndScroll(QWidget):
             
             #remove the initial item from the list, insert it at the right place
             #finding the index of self.target_y_item in layout
+            self.logger.add("Dropping in the layout",self.logger.verbose)
             after_widget = False
             for n in range(self.lay.count()):
                 w = self.lay.itemAt(n).widget()
@@ -111,6 +114,7 @@ class DragAndScroll(QWidget):
             
         
         elif self.current_folder_drop and self.current_folder_drop != widget and self.current_folder_drop != self.var.current_node:
+            self.logger.add("Dropping in a folder",self.logger.verbose)
             self.lay.removeWidget(widget)                        
             widget.setParent(self.current_folder_drop)   
             
@@ -132,22 +136,25 @@ class DragAndScroll(QWidget):
         e.accept()
 
     def clearDrawings(self):
+        self.logger.add("Clearing drawings",self.logger.verbose)
         self.target_y = None
         self.target_y_item = None
         self.update()
         if self.current_folder_drop:
             self.current_folder_drop.appear_normal()
 
-    def dragLeaveEvent(self, event):          
+    def dragLeaveEvent(self, event):   
+        self.logger.add("Drag Leave",self.logger.verbose)       
         self.var.dragActive = False  
         self.y_list = None
         event.accept()
 
-    def dragMoveEvent(self,event):        
+    def dragMoveEvent(self,event):               
         self.findDropPos(event.position().toPoint().y())
         event.accept()
 
     def findDropPos(self,y_pos):
+        self.logger.add("Finding drop pos",self.logger.verbose) 
         if self.y_list == []: return
         #finding min in y distance in self.y_list
         pos,mitem = self.y_list[0] # m is not the real min distance at the moment
@@ -230,7 +237,7 @@ class SimplePasswordKeeper(QMainWindow):
         super().__init__()
         self.var = var
         self.var.manager = self
-        self.logger=logs.Logger(display=var.settings.to_settings("logs"),name="manager_log")
+        self.logger=spk_logs.Logger(self.var,display=var.settings.to_settings("logs"),name="manager_log")
         self.theme = var.theme        
         self.settings = var.settings      
 
@@ -246,7 +253,7 @@ class SimplePasswordKeeper(QMainWindow):
             exit()
     
 
-    def wrong_character_popup(self):
+    def wrong_character_popup(self):        
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Question)        
         msg.setWindowTitle("U r dumb")
@@ -331,7 +338,7 @@ class SimplePasswordKeeper(QMainWindow):
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         toolbar.addWidget(spacer)
 
-        self.indicator =  spk_indicator.Spk_Indicator("Saved",color = "green")
+        self.indicator =  spk_indicator.Spk_Indicator(self.var,"Saved",color = "green")
         self.var.indicator = self.indicator
         toolbar.addWidget(self.indicator)
 
@@ -363,10 +370,12 @@ class SimplePasswordKeeper(QMainWindow):
         
 
         #TIMERS
+            #backup
         self.timer = QTimer(self)
         self.timer.timeout.connect(lambda : self.save(isbackup=True))
         self.timer.start(60000) # every minute 
 
+            #timeout
         self.last_mouse_pos = ()
         self.timer2 = QTimer(self)
         self.var.resetMousePos()
@@ -374,7 +383,7 @@ class SimplePasswordKeeper(QMainWindow):
         self.timer2.start(1000)
 
         #SOCKET
-        self.init_socket()
+        self.init_socket() # /!\ Work in progress
 
         #END -> loadPassword
         self.main_layout = main_layout 
@@ -434,8 +443,7 @@ class SimplePasswordKeeper(QMainWindow):
                         
         
            
-    def newPassword(self): #creates a new password
-        
+    def newPassword(self): #creates a new password        
         new_pass_lay=spk_password.Password(self.var,name = "New Password",password_text = "",parent=self.var.current_node)          
         self.scroll_layout.insertWidget(0,new_pass_lay)        
         self.logger.add("Created new password",self.logger.success)        
@@ -449,7 +457,8 @@ class SimplePasswordKeeper(QMainWindow):
         self.file_encryption_manager.setSaved(False)  
         self.indicator.temp_message("Created folder","gold",1)
 
-    def deleteItem(self,passw_uuid : uuid_manager.UUID,no_pop_up=False,from_selection = False):        
+    def deleteItem(self,passw_uuid : uuid_manager.UUID,no_pop_up=False,from_selection = False):
+        self.logger.add("Trying to delete an item",self.logger.verbose)        
         #POP-UP
         if not no_pop_up:    
             msg = QMessageBox()
@@ -496,7 +505,7 @@ class SimplePasswordKeeper(QMainWindow):
 
     def createArea(self): 
         
-        widget=DragAndScroll(None,self.var)
+        widget=DragAndScroll(self.var)
         item_layout=QVBoxLayout(widget) 
         widget.lay = item_layout
         for el in self.var.current_node.getChildren(copy=False):
@@ -559,10 +568,12 @@ class SimplePasswordKeeper(QMainWindow):
         return
       
     def resizeEvent(self, event): #resize the current field  
+        self.logger.add("Window resize",self.logger.verbose)
         for pw in self.var.current_shown_fields:  
             pw.resize()
 
     def search(self, word :str):
+        self.logger.add("Searching",self.logger.verbose)
         for pw in self.var.current_node.getChildren(copy=False):
             found: bool = pw.find(word)
             if found :                 
@@ -570,7 +581,8 @@ class SimplePasswordKeeper(QMainWindow):
             else:                
                 pw.hide()
 
-    def go_parent(self):  
+    def go_parent(self): 
+        self.logger.add("Trying to display the content of the parent folder",self.logger.verbose) 
         if self.var.current_node != self.var.root:      
             self.var.current_node = self.var.current_node.parent_folder
             
@@ -578,6 +590,7 @@ class SimplePasswordKeeper(QMainWindow):
         #self.current_node = 
 
     def init_socket(self,SOCKET_PATH = "/home/matheo/projectsL/simple_password_keeper/src/spk.sock"):   # work in progress...     
+        self.logger.add("RSocket Init",self.logger.verbose)
         if os.path.exists(SOCKET_PATH):
             os.unlink(SOCKET_PATH)        
     
@@ -602,7 +615,7 @@ class SimplePasswordKeeper(QMainWindow):
         notifier.activated.connect(on_new_connection)
         
     def writePassword(self):# work in progress...
-        print("Trying to write")
+        self.logger.add("Trying to write a password",self.logger.verbose)        
         if self.var.passwordToCopy:  
             if len(self.var.passwordToCopy.getText())<1000:
                 subprocess.run(["zsh","-c","hyprctl keyword '$LAPTOP_KB_ENABLED' \"false\" -r"])       

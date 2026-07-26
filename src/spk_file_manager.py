@@ -1,5 +1,5 @@
 import os
-import logs
+import spk_logs
 import datetime
 from cryptography.fernet import Fernet
 import cryptography
@@ -10,12 +10,13 @@ import binascii
 
 class FileManager():
     
-    def __init__(self,settings,file_dir,content="",encrypted_content=bytes()):
-        super().__init__()        
-        self.file_logger = logs.Logger(display=settings.to_settings("logs"),write_in_file=False,name="file_manager")
+    def __init__(self,var,file_dir,content="",encrypted_content=bytes()):
+        super().__init__()  
+        self.var = var  
+        self.settings = self.var.settings    
+        self.file_logger = spk_logs.Logger(self.var,display=self.settings.to_settings("logs"),write_in_file=False,name="file_manager")
         self.file_dir=file_dir
-        self.content = content
-        self.settings = settings
+        self.content = content        
         self.reason = ""
         
         
@@ -71,11 +72,13 @@ class FileManager():
 
     def setFernet(self,key):
         self.fernet = Fernet(key)
+        self.logger.add("Fernet key set",self.logger.verbose)
 
     
     
     #file directory manager
     def set_file_dir(self,file_dir, update_content = True):
+        self.logger.add("Setting file dir",self.logger.verbose)
         self.file_dir = file_dir
         if update_content : 
             if not os.path.exists(file_dir):
@@ -135,7 +138,7 @@ class FileManager():
                 self.content = ""
             return True
         except binascii.Error or cryptography.fernet.InvalidToken as e:
-            self.file_logger.add(f"Couldn't decrypt the content ({e})",logs.Logger.critical_error)
+            self.file_logger.add(f"Couldn't decrypt the content ({e})",spk_logs.Logger.critical_error)
             return False
         
     def encrypt_content(self, is_backup = False) -> bool: 
@@ -155,7 +158,7 @@ class FileManager():
                 return
             return True
         except binascii.Error:
-            self.file_logger.add("Couldn't encrypt the content",logs.Logger.critical_error)
+            self.file_logger.add("Couldn't encrypt the content",spk_logs.Logger.critical_error)
             return False
 
     def save(self,is_backup = False,silent = False) -> None:  

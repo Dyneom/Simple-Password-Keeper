@@ -1,4 +1,4 @@
-#this file is to run the project directly with python, to use the command line interface see the main.py folder
+#this file is to run the project directly with python, to use the command line interface see the main.py folder (default is with verbose)
 
 from PySide6.QtWidgets import QApplication, QStyleFactory
 from PySide6.QtGui import QFont
@@ -7,10 +7,12 @@ import sys
 import spk_manager
 import spk_variables
 
+
+
 if __name__ == "__main__":
     app = QApplication()  
 
-    vars = spk_variables.SpkVariables(current_field_edited=None,current_shown_fields=[],config="spk_settings.json",theme="spk.conf")
+    vars = spk_variables.SpkVariables(isVerbose=True,current_field_edited=None,current_shown_fields=[],config="spk_settings.json",theme="spk.conf")
     
     font = QFont(vars.theme.get("font").get("font"))    
     font.setPixelSize(int(vars.theme.get("font").get("size")))
@@ -34,7 +36,7 @@ if __name__ == "__main__":
 
 # TODO LIST:  
 # X be able to change the master password
-# - import passwords
+# X import passwords
 # X export passwords (copy the file :) ) 
 # X make it able to run with argparse
 # X Sort / Minecraft world sort ?

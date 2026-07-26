@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox,
 from PySide6.QtCore import QSize
 
 import qtawesome
+import spk_logs
 
 class SearchField(QWidget):
 
@@ -21,6 +22,9 @@ class SearchField(QWidget):
     def __init__(self, var):
         super().__init__()
         self.var = var
+        self.logger = spk_logs.Logger(self.var,True,False,"SearchField")
+        self.logger.add("Creating search field",self.logger.verbose)
+        
         self.setStyleSheet(self.var.theme.get("search").to_config())
 
 
@@ -45,6 +49,8 @@ class SearchField(QWidget):
 
     def clear(self):
         self.setText("")
+        self.logger.add("Search field cleared",self.logger.verbose)
+
 
 
   

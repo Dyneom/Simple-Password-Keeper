@@ -14,7 +14,7 @@ from rapidfuzz import process, fuzz
 
 
 #spk
-import logs
+import spk_logs
 import spk_variables
 import spk_password
 
@@ -31,13 +31,15 @@ class Folder(QWidget):
             variables.global_logs.add(f"Cannot create the folder \"{name}\". The uuid already exists. It is a bug","error")  
             self.uuid= uuid_manager.uuid4() 
         variables.uuids.append(self.uuid)
-
-
-        self.logger = logs.Logger(display=True,write_in_file=False,name="Folder ("+str(uuid)+")")
         self.var = variables
+
+        self.logger = spk_logs.Logger(self.var,display=True,write_in_file=False,name="Folder ("+str(uuid)+")")
+        
+        
         self.parent_folder : Folder = parent
         if kwargs.get("isRoot"):
             self.parent_folder = self
+            self.logger.add("Init of root folder",self.logger.verbose)
         elif kwargs.get("bypassParent") == True:
             pass
         else:
@@ -46,7 +48,7 @@ class Folder(QWidget):
         
         self.main_layout   = QHBoxLayout() 
         self.selected_check = QCheckBox() 
-        if  not kwargs.get("isRoot"):                 
+        if not kwargs.get("isRoot"):                 
             self.folder_name = spk_password.PasswordName(name,lambda : ...)
         else:
             self.folder_name = QLineEdit(name)                
@@ -120,15 +122,17 @@ class Folder(QWidget):
         return f
 
 
-    def onFolderNameChange(self):
+    def onFolderNameChange(self):        
         self.var.resetMousePos()        
-        self.var.manager.file_encryption_manager.setSaved(False)    
+        self.var.manager.file_encryption_manager.setSaved(False)
+        self.logger.add("Name change",self.logger.verbose)    
 
     def onFolderFieldChange(self):            
         self.var.manager.file_encryption_manager.setSaved(False)     
         self.var.resetMousePos()        
-        if self.getText()=="":
-            self.folder_name.setStyleSheet(self.var.theme.get("password_warning").to_config())        
+        if self.getText()=="": # maybe to remove              
+            self.folder_name.setStyleSheet(self.var.theme.get("password_warning").to_config())  
+              
         else:
             self.folder_name.setStyleSheet(self.var.theme.get("password").to_config())
 
@@ -136,15 +140,19 @@ class Folder(QWidget):
             
     
     def getName(self):
+        self.logger.add("Asking for the name",self.logger.verbose)    
         return self.folder_name.text()        
     
     def isEmpty(self):
+        self.logger.add("Asking if empty",self.logger.verbose)    
         return self.getText()==""
     
     def show(self):
+        self.logger.add("Folder now visible",self.logger.verbose)    
         self.setHidden(False)
 
     def hide(self):
+        self.logger.add("Folder now hidden",self.logger.verbose)    
         self.setHidden(True)
 
     def find(self,word: str):
@@ -158,6 +166,7 @@ class Folder(QWidget):
     
         
     def addChild(self,child):
+        self.logger.add("Adding a child",self.logger.verbose)    
         if child in self.children_list: 
             self.logger.add("Duplicating a child is not allowed", self.logger.warning)
             return
@@ -166,12 +175,15 @@ class Folder(QWidget):
             return
         self.children_list.append(child)
         self.var.manager.file_encryption_manager.setSaved(False)    
+        self.logger.add("Child added",self.logger.verbose)    
 
 
     def deleteChild(self,child,silent = True): #if not silent log will be dislayed
+        self.logger.add("Trying to delete a child",self.logger.verbose)    
         if child in self.children_list : 
             self.children_list.remove(child)
-            self.var.manager.file_encryption_manager.setSaved(False)    
+            self.var.manager.file_encryption_manager.setSaved(False)   
+            self.logger.add("Child deleted",self.logger.verbose)     
         elif not silent : self.logger.add("You are trying to remove a child which doesn't exist!", self.logger.warning)
 
     def getChildren(self, copy = True):        
@@ -184,6 +196,7 @@ class Folder(QWidget):
         return self.children_list
     
     def setChildren(self, l, copy = True):
+        self.logger.add("Setting children",self.logger.verbose)    
         if copy == True:
             l2 = []
             for el in l:
@@ -193,18 +206,22 @@ class Folder(QWidget):
         self.var.manager.file_encryption_manager.setSaved(False)    
         
     def appear_selected(self):
+        self.logger.add("Changing appearance -> selected",self.logger.verbose)    
         self.setStyleSheet(self.var.theme.get("password_background_selected").to_config())              
         self.selected_check.setChecked(True)        
     
     def appear_selected_drop(self):
+        self.logger.add("Changing appearance -> drop",self.logger.verbose)  
         self.setStyleSheet(self.var.theme.get("folder_background_drop").to_config())              
               
 
     def appear_normal(self):
+        self.logger.add("Changing appearance -> normal",self.logger.verbose)  
         self.setStyleSheet(self.var.theme.get("password_background").to_config()) 
         self.selected_check.setChecked(False) 
 
     def appear_normal_drop(self):
+        self.logger.add("Changing appearance -> normal (drop)",self.logger.verbose)   
         if self.selected_check.isChecked():
             self.appear_selected()
         else:
@@ -219,6 +236,7 @@ class Folder(QWidget):
         return super().mouseReleaseEvent(event)    
 
     def delete(self):
+        self.logger.add("Being deleted",self.logger.verbose)  
         if self in self.parent_folder.children_list : 
             self.parent_folder.children_list.remove(self)
         for el in self.children_list:
@@ -232,7 +250,7 @@ class Folder(QWidget):
         QTimer.singleShot(100, self.handleDoubleClick) # to prevent a bug when also dragging
         
 
-    def handleDoubleClick(self):
+    def handleDoubleClick(self):         
         if not self.var.dragActive:
             self.var.current_node = self
             self.var.manager.createArea()  
@@ -245,6 +263,7 @@ class Folder(QWidget):
     
 
     def getPath(self):
+        self.logger.add("Retrieving path",self.logger.verbose)   
         f = self
         path = f.getName()
         while f != self.var.root:
@@ -254,6 +273,7 @@ class Folder(QWidget):
     
 
     def moveChild(self,index,child):
+        self.logger.add("Moving a child",self.logger.verbose)  
         if  child not in self.children_list:
             self.logger.add("Unable to move a child that doesn't exist")
             return

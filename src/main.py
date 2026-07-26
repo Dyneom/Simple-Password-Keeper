@@ -4,7 +4,9 @@ It allows multiple things:
 -h, --help: display this help
 -p, --passwords: path to the password file -- doesn't work for now
 -t, --theme: path to the theme file
+-v, --verbose: activate verbose
  """
+
 
 from PySide6.QtWidgets import QApplication, QStyleFactory
 from PySide6.QtGui import QFont
@@ -24,11 +26,15 @@ args = sys.argv
 config = "spk_settings.json"
 theme = "spk.conf"
 password_path = "d"
+isVerbose = False
 
 for i in range(1,len(args)):
+    
     if args[i] == "-h" or args[i] == "--help":
         print(help_string)
         exit(0)
+    elif args[i] == "-v" or args[i] == "--verbose":
+        isVerbose = True       
     elif i==len(args)-1:
         break
     elif args[i] == "-c" or args[i] == "--config":        
@@ -40,6 +46,7 @@ for i in range(1,len(args)):
     elif args[i] == "-p" or args[i] == "--passwords":
         if os.path.exists(args[i+1]):
             password_path = args[i+1]
+    
 
 
 
@@ -47,7 +54,7 @@ for i in range(1,len(args)):
  
 app = QApplication()  
 
-vars = spk_variables.SpkVariables(current_field_edited=None,current_shown_fields=[],config=config,theme=theme)
+vars = spk_variables.SpkVariables(isVerbose = isVerbose, current_field_edited=None,current_shown_fields=[],config=config,theme=theme)
     
 font = QFont(vars.theme.get("font").get("font"))    
 font.setPixelSize(int(vars.theme.get("font").get("size")))

@@ -13,7 +13,7 @@ from rapidfuzz import process, fuzz
 
 import qtawesome
 #spk
-import logs
+import spk_logs
 import spk_variables
 import spk_folder
 
@@ -87,9 +87,10 @@ class Password(QWidget):
             variables.global_logs.add(f"Cannot create the password \"{name}\". The uuid already exists","error")  
             self.uuid= uuid_manager.uuid4() 
         variables.uuids.append(self.uuid)
-            
-        self.logger = logs.Logger(display=True,write_in_file=False,name="Password ("+str(uuid)+")")
-        self.var = variables
+
+        self.var = variables 
+        self.logger = spk_logs.Logger(self.var,display=True,write_in_file=False,name="Password ("+str(uuid)+")")
+        
 
         self.password_field = QTextEdit()        
         self.main_password_layout   = QVBoxLayout()       
@@ -241,10 +242,12 @@ class Password(QWidget):
         return is_in_name or is_in_pw
     
     def appear_selected(self):
+        self.logger.add("Changing appearance -> selected",self.logger.verbose)  
         self.setStyleSheet(self.var.theme.get("password_background_selected").to_config())              
         self.selected_check.setChecked(True)        
 
     def appear_normal(self):
+        self.logger.add("Changing appearance -> normal",self.logger.verbose)  
         self.setStyleSheet(self.var.theme.get("password_background").to_config()) 
         self.selected_check.setChecked(False)        
 
@@ -256,9 +259,9 @@ class Password(QWidget):
 
         return super().mouseReleaseEvent(event)
 
-    def copy(self,parent,memo,bypassParent):
-        if memo.get(id(self)) != None:
-            print("Anti-copy working (pw)")            
+    def copy(self,parent,memo,bypassParent):                
+        self.logger.add("Creating copy",self.logger.verbose)  
+        if memo.get(id(self)) != None:                     
             return memo[id(self)]
         
         if parent == None  :
@@ -267,6 +270,7 @@ class Password(QWidget):
         return f
 
     def delete(self):
+        self.logger.add("Being deleted",self.logger.verbose)  
         if self in self.parent_folder.children_list:
             self.parent_folder.children_list.remove(self)        
         if self in self.var.current_shown_fields:

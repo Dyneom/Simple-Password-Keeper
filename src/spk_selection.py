@@ -1,6 +1,7 @@
 import spk_variables
 import spk_folder
 import spk_password
+import spk_logs
 
 from PySide6.QtWidgets import QMessageBox
 
@@ -9,6 +10,7 @@ class Selection():
         self.selected = []
         self.var = variables
         self.var.selection = self
+        self.logger = spk_logs.Logger(self.var,True,False,"Selection")
         
     def invertSelection(self):
         new_selection = []
@@ -27,7 +29,15 @@ class Selection():
         self.selected = new_selection
 
     def add(self,element,remove = True): # if remove is set to True, if the element is already in the list, it will be removed
+        try:
+            self.logger.add(f"Adding/Removing {element.uuid}",self.logger.verbose)  
+        except Exception as e:
+            print(e,"while trying to log")
         if element not in self.selected : 
+            try:
+                self.logger.add(f"Adding {element.uuid}",self.logger.verbose)  
+            except Exception as e:
+                print(e,"while trying to log")
             self.selected.append(element)
             if isinstance(element,(spk_password.Password,spk_folder.Folder)):
                 element.appear_selected()
@@ -40,6 +50,10 @@ class Selection():
 
 
     def remove(self,element): #silent
+        try:
+            self.logger.add(f"Removing {element.uuid}",self.logger.verbose)  
+        except Exception as e:
+            print(e,"while trying to log")
         c = 100
         while element in self.selected and c > 0: #while should do the same as an if
             self.selected.remove(element) 
@@ -47,6 +61,7 @@ class Selection():
         pass
 
     def delete_selection(self) :    #will delete the item with the deleteItem function (see manager)
+        
         if len(self.selected)>0:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Question)
@@ -58,6 +73,9 @@ class Selection():
             response = response==QMessageBox.Yes # /!\ Change of type
             if not response : return 
         l = []
+        
+        self.logger.add(f"Deleting selection",self.logger.verbose)  
+        
         for el in self.selected:
             if isinstance(el,(spk_password.Password,spk_folder.Folder)):
                 l.append(el.uuid)
@@ -77,7 +95,9 @@ class Selection():
                 el.appear_normal()       
         self.selected.clear()
 
-    def selectAll(self):        
+    def selectAll(self):          
+        self.logger.add(f"Selecting everything",self.logger.verbose)  
+         
         self.selected = self.var.current_node.getChildren()
         for el in self.selected:
             if isinstance(el,(spk_password.Password,spk_folder.Folder)):

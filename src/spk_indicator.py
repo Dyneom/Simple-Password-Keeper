@@ -7,14 +7,17 @@ from PySide6.QtGui import QImage
 from PySide6.QtCore import QSize, QTimer, QPropertyAnimation, QEasingCurve
 
 import qtawesome
+import spk_logs
 
 class Spk_Indicator(QWidget):
 
     IconSize = QSize(16, 16)
     HorizontalSpacing = 2
 
-    def __init__(self, text:str, color:str ):
+    def __init__(self,var, text:str, color:str):
         super().__init__()
+        self.var = var
+        self.logger = spk_logs.Logger(self.var,True,False,"Indicator")
 
 
         self.text_label = QLabel(text.rjust(12))
@@ -39,6 +42,7 @@ class Spk_Indicator(QWidget):
         self.icon.setGraphicsEffect(self.opacity_effect)
 
     def set(self,text:str,color:str, was_tmp = False):
+        self.logger.add(f"Setting text : {text}",self.logger.verbose)
         if self.last_color == color and self.last_text == text.rjust(12) and not was_tmp: return
         if not was_tmp : 
             self.last_color = color
@@ -49,6 +53,7 @@ class Spk_Indicator(QWidget):
         
 
     def temp_message(self,text : str,color : str,time : int = 1) :
+        self.logger.add(f"Setting temp message : {text}",self.logger.verbose)
         self.fade_out_custom(text=text, color=color, time=time)
         
         

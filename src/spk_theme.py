@@ -1,6 +1,6 @@
 
 
-import logs
+import spk_logs
 import random
 import spk_theme
 import os
@@ -102,8 +102,10 @@ password_size = 80
     """
 
 
-    def __init__(self,config_file_dir,settings : spk_theme.ConfigDicts):
-        self.logger = logs.Logger(display=settings.to_settings("logs"),write_in_file=False,name="theme")
+    def __init__(self,config_file_dir,var):
+        self.var = var
+        self.settings = self.var.settings
+        self.logger = spk_logs.Logger(self.var,display=self.settings.to_settings("logs"),write_in_file=False,name="theme")
         self.logger.add("Theme Class created",self.logger.success)
 
         if config_file_dir not in os.listdir() :

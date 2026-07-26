@@ -25,7 +25,7 @@ import subprocess
 from cryptography.fernet import Fernet
  
 #spk
-import logs
+import spk_logs
 import spk_file_manager
 import spk_indicator
 import spk_password
@@ -43,8 +43,8 @@ class Spk_Encryption(spk_file_manager.FileManager):
     sha_256_iter = 5_000_000
     def __init__(self,var,file_dir):
         self.var = var
-        super().__init__(self.var.settings,file_dir)
-        self.logger = logs.Logger(True,False,f"Encryption {file_dir}")
+        super().__init__(self.var,file_dir)
+        self.logger = spk_logs.Logger(self.var,True,False,f"Encryption {file_dir}")
         self.isSaved = False
 
     def ask_password(self,message :str,hide = True):
@@ -77,6 +77,7 @@ class Spk_Encryption(spk_file_manager.FileManager):
     
 
     def changePassword(self,message = "Hello, to what do you want to change your password?" ): #True is the password was changed else False
+        self.logger.add("Trying to change password",self.logger.verbose)
         hash_func = pbkdf2_hmac
         result = 1
         pw = ""      
@@ -96,7 +97,7 @@ class Spk_Encryption(spk_file_manager.FileManager):
         return True
     
 
-    def message_popup(self,title,message,error_level = logs.Logger.information):        
+    def message_popup(self,title,message,error_level = spk_logs.Logger.information):        
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Question)        
         msg.setWindowTitle(title)
@@ -107,6 +108,7 @@ class Spk_Encryption(spk_file_manager.FileManager):
         msg.exec()
     
     def handle_password_at_start(self): #if the file exists : returns True if the file was valid, else returns False; if the file doesn't exist: can return False if the user choose to abort
+        self.logger.add("Handleling password prompt",self.logger.verbose)
         if self.reason and self.hash == None:
             if self.reason == "Creation":
                 return self.changePassword()
@@ -240,6 +242,8 @@ class Spk_Encryption(spk_file_manager.FileManager):
 
             
     def import_passwords(self): # work in progress...
+        self.logger.add("Trying to import passwords",self.logger.information)
+        if not self.close_save_prompt(): return
         self.var.manager.save()
         file_name = QFileDialog().getOpenFileName(self.var.manager,"Import passwords",os.getcwd(), "Spk Files (*.spk)")
         
@@ -250,7 +254,7 @@ class Spk_Encryption(spk_file_manager.FileManager):
         else: #relative path
             file2 = os.getcwd() + "/" + self.file_dir   
 
-        print(file1,file2)
+        
 
         if file1 == file2 : 
             return False
@@ -263,7 +267,7 @@ class Spk_Encryption(spk_file_manager.FileManager):
         #at this point: worked
         file1_encry.decrypt_content()
         content1 = file1_encry.get_content() # considers the content as valid (TODO: a checker) 
-        print(content1)
+        
         content2 = self.get_content()
         self.set_content(content1 + content2)        
         self.var.root.setChildren([],copy=False) #reset the children
@@ -272,7 +276,7 @@ class Spk_Encryption(spk_file_manager.FileManager):
         self.var.manager.createArea() # updates the layout
         
 
-        print("Content 2:",content2)
+       
         #self.file_manager.set_content( content1 + content2)
 
     def save_prompt(self) -> bool: #returns True if the user choose to save
@@ -310,7 +314,7 @@ class Spk_Encryption(spk_file_manager.FileManager):
 
         msg.children()[3].setStyleSheet(self.var.theme.get("dialog_password_buttons").to_config())    
         msg.children()[2].setStyleSheet(self.var.theme.get("dialog_password_message").to_config())    
-        print(msg.children())
+        
         result = msg.exec()
         if result == 0x4000: #Yes
             return 1 

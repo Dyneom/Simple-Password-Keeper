@@ -9,6 +9,7 @@ write_in_file = True
 
 class Logger():
 
+    verbose="Verbose"
     information="Information"
     success="Success"     
     warning="Warning"
@@ -16,8 +17,10 @@ class Logger():
     critical_error="Critical Error"
     shutdown_error="Shutdown Error"    
 
-    def __init__(self,display=False,write_in_file=False,name="log"):
+    def __init__(self,var,display=False,write_in_file=False,name="log"):
         self.display=display
+        self.var = var
+        self.isVerbose = self.var.isVerbose
         self.write_in_file=write_in_file        
         self.name=name
         if write_in_file :
@@ -35,7 +38,8 @@ class Logger():
 
         Ranks :
         - Success
-        - Information 
+        - Information
+        - Verbose 
         - Warning
         - Error
         - Critical Error
@@ -63,6 +67,9 @@ class Logger():
                 
                 case "success" : 
                     return "\033[32mSuccess : "
+                
+                case "verbose" : 
+                    return ""
                 
             return "\033[36m The rank doesn't exist : "
         
@@ -112,15 +119,18 @@ class Logger():
                 case "success" : 
                     return "Success: "
                 
+                case "verbose" : 
+                    return "Verbose: "
+                
             return "NON-EXISTANT RANK  : "
         
 
         
         
-        if self.display : 
+        if self.display and (self.isVerbose or rank != self.verbose):             
             print(f'{datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S:%f")[:-3]} -> {self.name} | {rank_display(rank)+message}\033[0m')
 
-        if self.write_in_file:
+        if self.write_in_file and (self.isVerbose or rank != self.verbose):
             try:
                 if os.stat(self.name+str(self.counter)+".html").st_size>1_000_000:
                     self.counter+=1
