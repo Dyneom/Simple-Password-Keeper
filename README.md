@@ -2,8 +2,9 @@
 
 
 
-This is a project for storing password on PCs. It was orginaly created by me for me but I thought it was a a good idea to make it public.
-
+This is a project for storing password or notes on PCs. It was orginaly created by me for me but I thought it was a a good idea to make it public.
+It is designed to resist to a person with the file. 
+The interface is made to be themed to your liking through the `spk.conf` file
 ⚠️  It may be not secure. If you use this code make sure no breach were found on the Fernet part of the cryptography package.
 
 
@@ -22,7 +23,9 @@ These instructions are just cloning the repo, creating a venv and running.
 4. Run `python -m venv .venv`
 5. Run `source .venv/bin/activate`
 6. Run `pip install -r requirements.txt`
-7. Finally, all there is to do is to run the `main.py` file
+7. There are two way to run the code
+    - Using the main.py: it accepts arguments (run `python main.py --help`)
+    - Using the spk_main.py file: write the arguments directly in the file and use `python spk_main.py` to run it
 
 ## Theming and configuration
 
@@ -66,5 +69,11 @@ Go to the spk_settings.json to see the valid arguments.
 - [x] Config and theme files 
 - [x] The app times out 
 - [x] A search field
-- []
+- [x] Master password change
+- [x] Folders
+- [x] Password importation
+- [x] Drag and drop support
+- [x] Backups (to be improved)
+- [ ] Copy/Paste system
+
 
