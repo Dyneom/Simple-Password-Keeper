@@ -1,6 +1,6 @@
 import uuid as uuid_manager
 
-from PySide6.QtGui import QColor, QDrag, QPixmap, QPainter, QPen
+from PySide6.QtGui import QColor, QDrag, QPixmap
 
 from PySide6.QtWidgets import (
                             QCheckBox, QHBoxLayout, QVBoxLayout, 
@@ -8,10 +8,11 @@ from PySide6.QtWidgets import (
                             QTextEdit
                             )
 
-from PySide6.QtCore import Qt, QTimer, QMimeData, QPoint
+from PySide6.QtCore import Qt, QTimer, QMimeData
 from rapidfuzz import process, fuzz
 
 import qtawesome
+
 #spk
 import spk_logs
 import spk_variables

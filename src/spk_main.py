@@ -32,15 +32,5 @@ if __name__ == "__main__":
 
 
 
-
-
-# TODO LIST:  
-# X be able to change the master password
-# X import passwords
-# X export passwords (copy the file :) ) 
-# X make it able to run with argparse
-# X Sort / Minecraft world sort ?
-
-
-
-#add a copy-like system 
+# TODO:
+#   add a copy-like system (CTRL-C / CTRL-X -> CTRL-V)

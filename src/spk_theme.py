@@ -1,8 +1,5 @@
-
-
 import spk_logs
 import random
-import spk_theme
 import os
 class SpkTheme():
     #TODO : change the default config to be in a file

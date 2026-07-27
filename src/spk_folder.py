@@ -1,11 +1,10 @@
 import uuid as uuid_manager
 
-from PySide6.QtGui import QColor, QDrag, QPixmap
+from PySide6.QtGui import QDrag, QPixmap
 
 from PySide6.QtWidgets import (
-                            QCheckBox, QHBoxLayout, QVBoxLayout, 
-                            QWidget, QLineEdit, QPushButton,   
-                            QTextEdit  
+                            QCheckBox, QHBoxLayout, 
+                            QWidget, QLineEdit,                               
                             )
 
 from PySide6.QtCore import Qt, QMimeData, QTimer

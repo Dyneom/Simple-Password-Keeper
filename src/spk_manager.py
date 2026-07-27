@@ -1,33 +1,23 @@
-from __future__ import annotations 
-from hashlib import pbkdf2_hmac # sha256
-
-
-
-from PySide6.QtGui import QAction, QIcon, QShortcut, QKeySequence, QCursor, QPainter, QPen, QColor
+from PySide6.QtGui import QAction, QShortcut, QKeySequence, QCursor, QPainter, QPen, QColor
 
 from PySide6.QtWidgets import ( 
                             QGridLayout, QVBoxLayout, QWidget, 
                             QScrollArea, QToolBar, QMainWindow, 
-                            QLineEdit, QSpacerItem, QMessageBox, 
-                            QWidgetItem, QInputDialog,  QSizePolicy  , QToolButton, QMenu, QFileDialog                          
+                            QSpacerItem, QMessageBox, QSizePolicy, 
+                            QToolButton, QMenu                         
                             )
 
-from PySide6.QtCore import QTimer, Qt, QSocketNotifier, QPoint, QEvent
-
+from PySide6.QtCore import QTimer, QSocketNotifier, QPoint
 
 import qtawesome
 import time as func_timer
 import uuid as uuid_manager
-import argon2
-import base64
 import os 
 import socket
 import subprocess
-from cryptography.fernet import Fernet
  
 #spk
 import spk_logs
-import spk_file_manager
 import spk_indicator
 import spk_password
 import spk_variables

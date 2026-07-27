@@ -1,9 +1,6 @@
 
 from PySide6.QtWidgets import QLabel, QWidget, QHBoxLayout, QGraphicsOpacityEffect
 
-from PySide6.QtGui import QImage
-
-
 from PySide6.QtCore import QSize, QTimer, QPropertyAnimation, QEasingCurve
 
 import qtawesome

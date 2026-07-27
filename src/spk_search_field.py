@@ -1,13 +1,4 @@
-from PySide6.QtGui import QAction, QFont, QIcon, QShortcut, QKeySequence, QCursor, QColor
-
-from PySide6.QtWidgets import (QApplication, QCheckBox, 
-                            QGridLayout,  QHBoxLayout, 
-                            QStyleFactory, QVBoxLayout, 
-                            QWidget, QScrollArea, QToolBar,
-                            QMainWindow, QLineEdit, QSpacerItem,
-                            QPushButton, QMessageBox, QWidgetItem, QInputDialog, QLabel, QSizePolicy,
-                            QTextEdit                                
-                            )
+from PySide6.QtWidgets import QHBoxLayout, QWidget, QLineEdit, QLabel
 
 from PySide6.QtCore import QSize
 
